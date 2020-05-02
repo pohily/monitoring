@@ -2,15 +2,15 @@ import logging
 import os
 import time
 from configparser import ConfigParser
-from sys import argv
 from contextlib import closing
+from sys import argv
 
 import pymysql
-from pymysql.cursors import DictCursor
 import schedule
+from pymysql.cursors import DictCursor
 
-from monitor import Monitor
 from constants import TIME_DELTA
+from monitor import Monitor
 
 
 def db_queries(monitor, start_time=None):
@@ -23,6 +23,7 @@ def db_queries(monitor, start_time=None):
                                  charset='utf8', cursorclass=DictCursor)) as connection:
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
+        logging.INFO('Выполняем запросы в DB')
         with connection.cursor() as cursor:
             query = f"SELECT id, status, amount, returnsumm, create_ts FROM credit " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
@@ -44,6 +45,13 @@ def db_queries(monitor, start_time=None):
             statuses = []
             for row in cursor:
                 statuses.append(row)
+        # find metrics
+        logging.INFO('Рассчет метрик')
+        monitor.find_metrics(credits, persons, statuses)
+        # save credit and person stacks
+        monitor.save_stacks(persons, credits)
+        #todo draw graphs
+        #todo update time
 
 
 
