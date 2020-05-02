@@ -10,27 +10,40 @@ from pymysql.cursors import DictCursor
 import schedule
 
 from monitor import Monitor
+from constants import TIME_DELTA
 
 
-def job(monitor, start_time=None):
+def db_queries(monitor, start_time=None):
+    """ Получает временной отрзок и делает запросы к DB """
     config = ConfigParser()
     config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
     config.read(config_file)
     with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
                                  password=config['db']['password'], db=config['db']['db_name'],
                                  charset='utf8', cursorclass=DictCursor)) as connection:
+        start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
+        last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         with connection.cursor() as cursor:
-            query = """
-                            SELECT
-                                status
-                            FROM
-                                credit
-                            Where 
-                                id < 3
-                            """
+            query = f"SELECT id, status, amount, returnsumm, create_ts FROM credit " \
+                    f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
             cursor.execute(query)
+            credits = []
             for row in cursor:
-                print(row)
+                credits.append(row)
+        with connection.cursor() as cursor:
+            query = f"SELECT id, stage, create_ts FROM person " \
+                    f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
+            cursor.execute(query)
+            persons = []
+            for row in cursor:
+                persons.append(row)
+        with connection.cursor() as cursor:
+            query = f"SELECT credit_id, `from`, `to`, timestamp FROM h_credit_status " \
+                    f"where timestamp > '{start_time}' and timestamp < '{last_time}'"
+            cursor.execute(query)
+            statuses = []
+            for row in cursor:
+                statuses.append(row)
 
 
 
@@ -52,8 +65,9 @@ def main():
         logging.exception('Введите правильное время!')
         raise Exception('Введите правильное время!')
 
-    monitor = Monitor()
-    schedule.every(5).seconds.do(job, monitor=monitor, start_time=start_time)
+    monitor = Monitor(start_time)
+    #todo change time interval
+    schedule.every(TIME_DELTA).seconds.do(db_queries, monitor=monitor, start_time=start_time)
 
     while True:
         schedule.run_pending()
@@ -64,18 +78,35 @@ if __name__ == '__main__':
     config = ConfigParser()
     config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
     config.read(config_file)
+    monitor = Monitor()
     with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
                                  password=config['db']['password'], db=config['db']['db_name'],
                                  charset='utf8', cursorclass=DictCursor)) as connection:
+        start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
+        last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         with connection.cursor() as cursor:
-            query = """
-                                SELECT
-                                    status
-                                FROM
-                                    credit
-                                Where 
-                                    id < 7
-                                """
+            query = f"SELECT id, status, amount, returnsumm, create_ts FROM credit " \
+                    f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
             cursor.execute(query)
+            credits = []
             for row in cursor:
-                print(row)
+                credits.append(row)
+        with connection.cursor() as cursor:
+            query = f"SELECT id, stage, create_ts FROM person " \
+                    f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
+            cursor.execute(query)
+            persons = []
+            for row in cursor:
+                persons.append(row)
+        with connection.cursor() as cursor:
+            query = f"SELECT credit_id, `from`, `to`, timestamp FROM h_credit_status " \
+                    f"where timestamp > '{start_time}' and timestamp < '{last_time}'"
+            cursor.execute(query)
+            statuses = []
+            for row in cursor:
+                statuses.append(row)
+        print('credit', credits)
+        print('person', persons)
+        print('hcs', statuses)
+        pass
+
