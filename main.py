@@ -3,16 +3,35 @@ import os
 import time
 from configparser import ConfigParser
 from sys import argv
+from contextlib import closing
 
+import pymysql
+from pymysql.cursors import DictCursor
 import schedule
 
 from monitor import Monitor
 
 
 def job(monitor, start_time=None):
-    if start_time:
-        print(start_time)
-    monitor.test()
+    config = ConfigParser()
+    config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+    config.read(config_file)
+    with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
+                                 password=config['db']['password'], db=config['db']['db_name'],
+                                 charset='utf8', cursorclass=DictCursor)) as connection:
+        with connection.cursor() as cursor:
+            query = """
+                            SELECT
+                                status
+                            FROM
+                                credit
+                            Where 
+                                id < 3
+                            """
+            cursor.execute(query)
+            for row in cursor:
+                print(row)
+
 
 
 def main():
@@ -41,4 +60,22 @@ def main():
         time.sleep(1)
 
 if __name__ == '__main__':
-    main()
+    #main()
+    config = ConfigParser()
+    config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+    config.read(config_file)
+    with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
+                                 password=config['db']['password'], db=config['db']['db_name'],
+                                 charset='utf8', cursorclass=DictCursor)) as connection:
+        with connection.cursor() as cursor:
+            query = """
+                                SELECT
+                                    status
+                                FROM
+                                    credit
+                                Where 
+                                    id < 7
+                                """
+            cursor.execute(query)
+            for row in cursor:
+                print(row)
