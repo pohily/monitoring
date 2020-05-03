@@ -25,7 +25,7 @@ def db_queries(monitor, start_time=None):
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         logging.INFO('Выполняем запросы в DB')
         with connection.cursor() as cursor:
-            query = f"SELECT id, status, amount, returnsumm, create_ts FROM credit " \
+            query = f"SELECT id, status, amount, returnsumm, create_ts, approved_ts FROM credit " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
             cursor.execute(query)
             credits = []
