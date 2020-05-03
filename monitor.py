@@ -1,6 +1,7 @@
 import datetime
 from decimal import Decimal
 from collections import deque
+import matplotlib.pyplot as plt
 
 from constants import TIME_DELTA, STACK_DURATION
 
@@ -16,11 +17,11 @@ class Monitor():
         self.stage_6_stack = deque()        # persons on stage 6 за сутки (STACK_DURATION)
         self.except_6_stack = deque()       # persons on stage < 6 за сутки (STACK_DURATION)
         self.scoring_stuck_stack = deque()  # credits with statuses 0 за сутки (STACK_DURATION)
+        self.ids_stack = set()              # set айдишников из scoring_stuck_stack
         ############## metrics
         self.new_bids = []                  # Количество новых заявок за TIME_DELTA
         self.approves = []                  # Количество одобрений за TIME_DELTA
         self.amount = []                    # сумма выданных кредитов за TIME_DELTA
-        self.returnsumm = []                # сумма возвращенных кредитов за TIME_DELTA
         self.pastdue = []                   # количство уходов в просрочку за TIME_DELTA
         self.pastdue_repayment = []         # количество выхода из просрочки за TIME_DELTA
         self.scoring_time = []              # среднее время скоринга за TIME_DELTA
@@ -40,29 +41,31 @@ class Monitor():
                 self.start_time = self.last_time
                 self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
-    def find_metrics(self, credits, persons, statuses):
+    def find_metrics(self, persons, statuses):
         self.new_bids.append((self.last_time, len(persons)))
 
-        amount, returnsumm, approves, scoring_time = 0, 0, 0, []
-        for row in credits:
-            if row['status'] == 2:
-                approves += 1
-                amount += row['amount']
-                scoring_time.append(row['approved_ts'] - row['create_ts'])
-            if row['status'] == 3:
-                returnsumm += int(row['returnsumm'])
-        self.approves.append((self.last_time, approves))
-        self.amount.append((self.last_time, amount))
-        self.returnsumm.append((self.last_time, returnsumm))
-        #todo convert to seconds?
-        self.scoring_time.append((self.last_time, sum(scoring_time) / len(scoring_time)))
-
-        pastdue, pastdue_repayment = 0, 0
-        for row in statuses:
-            if row['to'] == 4:
+        amount, pastdue, pastdue_repayment, approves, scoring_time = 0, 0, 0, 0, []
+        for status in statuses:
+            if status['to'] == 4:
                 pastdue += 1
-            if (row['from'] == 4 and row['to'] == 2) or (row['from'] == 4 and row['to'] == 3):
+            if (status['from'] == 4 and status['to'] == 2) or (status['from'] == 4 and status['to'] == 3):
                 pastdue_repayment += 1
+            # проверка одобрений
+            if status['from'] == 1 and status['to'] == 2:
+                approves += 1
+                if status['credit_id'] in self.ids_stack:
+                    self.ids_stack.remove(status['credit_id'])
+                    for credit in self.scoring_stuck_stack:
+                        if credit['id'] == status['credit_id']:
+                            scoring_time.append(status['timestamp'] - credit['create_ts'])
+                            amount += credit['amount']
+                            break
+        # todo convert to seconds?
+        self.scoring_time.append((self.last_time, sum(scoring_time) / len(scoring_time)))
+        self.approves.append((self.last_time, approves))
+        self.pastdue.append((self.last_time, pastdue))
+        self.pastdue_repayment.append((self.last_time, pastdue_repayment))
+        self.amount.append((self.last_time, amount))
 
     def check_person_stacks(self, persons):
         # добавляем новые заявки
@@ -86,15 +89,19 @@ class Monitor():
         )
 
     def check_credits_stack(self, credits):
+
         # добавляем новые кредиты
         for credit in credits:
             if credit['status'] == 2 and credit in self.scoring_stuck_stack:
                 self.scoring_stuck_stack.remove(credit)
+                self.ids_stack.remove(credit['id'])
             if credit['status'] == 0:
+                self.ids_stack.add(credit['id'])
                 self.scoring_stuck_stack.append(credit)
         # убираем просроченные кредиты
         while self.last_time - self.scoring_stuck_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-            self.scoring_stuck_stack.popleft()
+            credit = self.scoring_stuck_stack.popleft()
+            self.ids_stack.remove(credit['id'])
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.last_time, len(self.scoring_stuck_stack)))
 

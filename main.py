@@ -13,19 +13,19 @@ from constants import TIME_DELTA
 from monitor import Monitor
 
 
-def db_queries(monitor, start_time=None):
+def db_queries(monitor, start_time=None, db_name='ru_backend'):
     """ Получает временной отрзок и делает запросы к DB """
     config = ConfigParser()
     config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
     config.read(config_file)
     with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
-                                 password=config['db']['password'], db=config['db']['db_name'],
+                                 password=config['db']['password'], db=db_name,
                                  charset='utf8', cursorclass=DictCursor)) as connection:
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         logging.INFO('Выполняем запросы в DB')
         with connection.cursor() as cursor:
-            query = f"SELECT id, status, amount, returnsumm, create_ts, approved_ts FROM credit " \
+            query = f"SELECT id, status, amount, returnsumm, create_ts FROM credit " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
             cursor.execute(query)
             credits = []
@@ -45,15 +45,17 @@ def db_queries(monitor, start_time=None):
             statuses = []
             for row in cursor:
                 statuses.append(row)
-        # find metrics
-        logging.INFO('Рассчет метрик')
-        monitor.find_metrics(credits, persons, statuses)
-        # check and save credit and person stacks
-        monitor.check_person_stacks(persons)
-        monitor.check_credits_stack(credits)
+    # find metrics
+    logging.INFO('Рассчет метрик')
+    monitor.find_metrics(persons, statuses)
+    # check and save credit and person stacks
+    monitor.check_person_stacks(persons)
+    monitor.check_credits_stack(credits)
 
-        #todo draw graphs
-        #todo update time
+    #todo draw graphs
+    logging.INFO('Рисуем графики')
+
+    #todo update time
 
 
 
@@ -78,6 +80,7 @@ def main():
     monitor = Monitor(start_time)
     #todo change time interval
     schedule.every(TIME_DELTA).seconds.do(db_queries, monitor=monitor, start_time=start_time)
+    #schedule.every(TIME_DELTA).seconds.do(db_queries, monitor=monitor, start_time=start_time, db_name='kz_backend')
 
     while True:
         schedule.run_pending()
@@ -90,12 +93,12 @@ if __name__ == '__main__':
     config.read(config_file)
     monitor = Monitor()
     with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
-                                 password=config['db']['password'], db=config['db']['db_name'],
+                                 password=config['db']['password'], db='ru_backend',
                                  charset='utf8', cursorclass=DictCursor)) as connection:
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         with connection.cursor() as cursor:
-            query = f"SELECT id, status, amount, returnsumm, create_ts FROM credit " \
+            query = f"SELECT id, status, amount, returnsumm, create_ts, approved_ts FROM credit " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
             cursor.execute(query)
             credits = []
