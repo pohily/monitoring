@@ -7,25 +7,25 @@ from constants import TIME_DELTA, STACK_DURATION
 
 class Monitor():
     def __init__(self, start_time=None):
-        self.complete_bids = []             # Количество заявок в стадии 6 за сутки (STACK_DURATION)
-        self.incomplete_bids = []           # Количество заявок в стадии < 6 за сутки (STACK_DURATION)
-        self.inapproved_credits = []        # Количество кредитов в статусах -1, 0 за сутки (STACK_DURATION)
-        self.complete_registration = []     # % прохождения цепочки за сутки (STACK_DURATION)
-        ############
-        self.new_bids = []                  # Количество новых заявок за TIME_DELTA
-        self.approves = []                  # Количество одобрений за TIME_DELTA
-        self.amount = []                    # сумма выданных кредитов за TIME_DELTA
-        self.returnsumm = []                # сумма возвращенных кредитов за TIME_DELTA
-        self.pastdue = []                   # количство уходов в просрочку за TIME_DELTA
-        self.pastdue_repayment = []         # количество выхода из просрочки за TIME_DELTA
-        ############## под вопросом
-        self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
-        self.scoring_time = []              # среднее время скоринга за TIME_DELTA
-        self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
+        self.complete_bids_day = []             # Текущее количество заявок в стадии 6 за сутки (STACK_DURATION)
+        self.incomplete_bids_day = []           # Текущее количество заявок в стадии < 6 за сутки (STACK_DURATION)
+        self.inapproved_credits_day = []        # Текущее количество кредитов в статусах -1, 0 за сутки (STACK_DURATION)
+        self.complete_registration_day = []     # Текущий % прохождения цепочки за сутки (STACK_DURATION)
         ############## stacks
-        self.stage_6 = deque()              # persons on stage 6 за сутки (STACK_DURATION)
-        self.except_6 = deque()             # persons on stage < 6 за сутки (STACK_DURATION)
-        self.not_approved_credits = deque() # credits with statuses -1, 0 за сутки (STACK_DURATION)
+        self.stage_6_stack = deque()            # persons on stage 6 за сутки (STACK_DURATION)
+        self.except_6_stack = deque()           # persons on stage < 6 за сутки (STACK_DURATION)
+        self.not_approved_credits_stack = deque() # credits with statuses -1, 0 за сутки (STACK_DURATION)
+        ############## metrics
+        self.new_bids = []                      # Количество новых заявок за TIME_DELTA
+        self.approves = []                      # Количество одобрений за TIME_DELTA
+        self.amount = []                        # сумма выданных кредитов за TIME_DELTA
+        self.returnsumm = []                    # сумма возвращенных кредитов за TIME_DELTA
+        self.pastdue = []                       # количство уходов в просрочку за TIME_DELTA
+        self.pastdue_repayment = []             # количество выхода из просрочки за TIME_DELTA
+        ############## под вопросом
+        self.repeate_bids = []                  # Количество повторных заявок за TIME_DELTA
+        self.scoring_time = []                  # среднее время скоринга за TIME_DELTA
+        self.partner_bids = []                  # количество заявок через партнеров за TIME_DELTA
 
         NOW = datetime.datetime.now()
         if not start_time:
@@ -64,25 +64,27 @@ class Monitor():
         # добавляем новые заявки
         for person in persons:
             if person['stage'] == 6:
-                self.stage_6.append(person)
-                if person in self.except_6:
-                    self.except_6.remove(person)
+                self.stage_6_stack.append(person)
+                if person in self.except_6_stack:
+                    self.except_6_stack.remove(person)
             else:
-                self.except_6.append(person)
+                self.except_6_stack.append(person)
         # убираем просроченные заявки
-        while self.last_time - self.stage_6[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-            self.stage_6.popleft()
-        while self.last_time - self.except_6[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-            self.except_6.popleft()
+        while self.last_time - self.stage_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
+            self.stage_6_stack.popleft()
+        while self.last_time - self.except_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
+            self.except_6_stack.popleft()
         # апдейтим количества заявок
-        self.complete_bids.append((self.last_time, len(self.stage_6)))
-        self.incomplete_bids.append((self.last_time, len(self.except_6)))
-        self.complete_registration.append(
-            (self.last_time, len(self.complete_bids) / (len(self.complete_bids) + len(self.incomplete_bids)))
+        self.complete_bids_day.append((self.last_time, len(self.stage_6_stack)))
+        self.incomplete_bids_day.append((self.last_time, len(self.except_6_stack)))
+        self.complete_registration_day.append(
+            (self.last_time, len(self.stage_6_stack) / (len(self.stage_6_stack) + len(self.except_6_stack)))
         )
 
     def check_credits_stack(self, credits):
-        pass
+        for credit in credits:
+            if credit['status'] == -1 or credit['status'] == 0:
+                self.inapproved_credits_day.append(credit)
 
     def draw_graphs(self):
         pass
