@@ -48,8 +48,10 @@ def db_queries(monitor, start_time=None):
         # find metrics
         logging.INFO('Рассчет метрик')
         monitor.find_metrics(credits, persons, statuses)
-        # save credit and person stacks
-        monitor.save_stacks(persons, credits)
+        # check and save credit and person stacks
+        monitor.check_person_stacks(persons)
+        monitor.check_credits_stack(credits)
+
         #todo draw graphs
         #todo update time
 
