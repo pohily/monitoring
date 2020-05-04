@@ -1,10 +1,8 @@
 import datetime
 from decimal import Decimal
 from collections import deque
-
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
-import matplotlib.animation as animation
 
 from constants import TIME_DELTA, STACK_DURATION
 
@@ -32,6 +30,8 @@ class Monitor():
         self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
 
         self.NOW = datetime.datetime.now()
+        self.start = True       # первый раз данные получаются без задержки
+        self.time_shift = False # флаг выполненного time_shift
         if not time_shift:
             self.last_time = self.NOW
             self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
@@ -103,35 +103,6 @@ class Monitor():
                 self.ids_stack.remove(credit['id'])
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.last_time, len(self.scoring_stuck_stack)))
-
-    def draw_graphs(self):
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.set_title("Россия", fontsize=16)
-        ax.set_xlabel("Время", fontsize=14)
-        ax.grid(which="major", linewidth=1.2)
-        ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
-
-        plt.plot([i[0] for i in self.complete_registration_day],
-                 [i[1] for i in self.complete_registration_day], 'o-', label="Текущий % прохождения цепочки")
-        plt.plot([i[0] for i in self.scoring_stuck_day],
-                 [i[1] for i in self.scoring_stuck_day], 'o-', label="Текущее количество кредитов зависших на скоринге")
-        plt.plot([i[0] for i in self.new_bids],
-                 [i[1] for i in self.new_bids], 'o-', label="Количество новых заявок")
-        plt.plot([i[0] for i in self.approves],
-                 [i[1] for i in self.approves], 'o-', label="Количество одобрений")
-        plt.plot([i[0] for i in self.pastdue],
-                 [i[1] for i in self.pastdue], 'o-', label="Количество уходов в просрочку")
-        plt.plot([i[0] for i in self.pastdue_repayment],
-                 [i[1] for i in self.pastdue_repayment], 'o-', label="Количество выходов из просрочки")
-        plt.plot([i[0] for i in self.scoring_time],
-                 [i[1] for i in self.scoring_time], 'o-', label="Cреднее время скоринга в минутах")
-
-        ax.legend(bbox_to_anchor=(1, 0.6))
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.tick_params(which='major', length=10, width=2)
-        ax.tick_params(which='minor', length=5, width=1)
-        plt.show()
 
     def update_time(self):
         self.start_time = self.last_time
