@@ -22,7 +22,7 @@ def monitoring(monitor, db_name='ru_backend'):
                                  charset='utf8', cursorclass=DictCursor)) as connection:
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
-        logging.info('Выполняем запросы в DB')
+        logging.info(f"Выполняем запросы в DB {monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')} - {monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')}")
         with connection.cursor() as cursor:
             query = f"SELECT id, status, create_ts FROM credit " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
@@ -73,13 +73,20 @@ def main():
             if len(argv) > 1:
                 time_shift = argv[1]
         else:
-            time_shift = 1
+            time_shift = 0
     except IndexError:
         logging.exception('Введите количество часов для построения графика!')
         raise Exception('Введите количество часов для построения графика!')
 
     monitor = Monitor(time_shift)
+    # Первый запуск
     monitoring(monitor)
+    if time_shift:
+        count = 1
+        while monitor.last_time < monitor.NOW:
+            count += 1
+            logging.debug(f'Запуск {count}')
+            monitoring(monitor)
 
     schedule.every(TIME_DELTA).minutes.do(monitoring, monitor=monitor)
     #schedule.every(TIME_DELTA).minutes.do(monitoring, monitor=monitor, db_name='kz_backend')

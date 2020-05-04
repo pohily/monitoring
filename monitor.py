@@ -4,6 +4,7 @@ from collections import deque
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
+import matplotlib.animation as animation
 
 from constants import TIME_DELTA, STACK_DURATION
 
@@ -30,12 +31,13 @@ class Monitor():
         self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
         self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
 
-        NOW = datetime.datetime.now()
-        self.last_time = NOW
+        self.NOW = datetime.datetime.now()
         if not time_shift:
-            self.start_time = NOW - datetime.timedelta(minutes=TIME_DELTA)
+            self.last_time = self.NOW
+            self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
         else:
-            self.start_time = NOW - datetime.timedelta(hours=int(time_shift))
+            self.start_time = self.NOW - datetime.timedelta(hours=int(time_shift))
+            self.last_time = self.start_time + datetime.timedelta(minutes=TIME_DELTA)
 
     def find_metrics(self, persons, statuses):
         self.new_bids.append((self.last_time, len(persons)))
@@ -95,9 +97,10 @@ class Monitor():
                 self.ids_stack.add(credit['id'])
                 self.scoring_stuck_stack.append(credit)
         # убираем просроченные кредиты
-        while self.last_time - self.scoring_stuck_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-            credit = self.scoring_stuck_stack.popleft()
-            self.ids_stack.remove(credit['id'])
+        if self.scoring_stuck_stack:
+            while self.last_time - self.scoring_stuck_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
+                credit = self.scoring_stuck_stack.popleft()
+                self.ids_stack.remove(credit['id'])
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.last_time, len(self.scoring_stuck_stack)))
 
@@ -123,7 +126,7 @@ class Monitor():
         plt.plot([i[0] for i in self.scoring_time],
                  [i[1] for i in self.scoring_time], 'o-', label="Cреднее время скоринга в минутах")
 
-        ax.legend()
+        ax.legend(bbox_to_anchor=(1, 0.6))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(which='major', length=10, width=2)
@@ -146,12 +149,11 @@ if __name__ == '__main__':
     ax.set_xlabel("Время", fontsize=14)
     ax.grid(which="major", linewidth=1.2)
     ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
-    plt.plot([i[0] for i in bids], [i[1] for i in bids], 'o-', label="bids")
+    plt.plot([i[0] for i in bids], [i[1] for i in bids], 'o-', label="Cреднее время скоринга в минутах")
     plt.plot([i[0] for i in credits], [i[1] for i in credits],'o-', label="credits")
     ax.legend()
     ax.xaxis.set_minor_locator(AutoMinorLocator())
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.tick_params(which='major', length=10, width=2)
     ax.tick_params(which='minor', length=5, width=1)
-
     plt.show()
