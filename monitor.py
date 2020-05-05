@@ -1,6 +1,8 @@
 import datetime
 from decimal import Decimal
 from collections import deque
+import logging
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
@@ -44,62 +46,70 @@ class Monitor():
         self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
     def find_metrics(self, persons, statuses):
-        self.new_bids.append((self.last_time, len(persons)))
+        self.new_bids.append((self.start_time, len(persons)))
         approves, scoring_time = 0, []
         for status in statuses:
+            # credit goes to scoring
+            if status['from'] == 0 and status['to'] == 0:
+                self.scoring_stuck_stack.append(status)
+                self.ids_stack.add(status['credit_id'])
+                logging.debug(f"append {status['credit_id']} to scoring_stuck_stack")
+            # approves
             if status['from'] == 1 and status['to'] == 2:
                 approves += 1
+                # scoring_time
                 if status['credit_id'] in self.ids_stack:
-                    self.ids_stack.remove(status['credit_id'])
-                    for credit in self.scoring_stuck_stack:
-                        if credit['id'] == status['credit_id']:
+                    for item in self.scoring_stuck_stack:
+                        if status['credit_id'] == item['credit_id']:
                             # превращаем timedelta в количество минут
-                            delta = str(status['timestamp'] - credit['create_ts']).split(':')
-                            scoring_time.append(round(int(delta[0])*60 + int(delta[1]) + int(delta[2]) / 60, 1))
+                            delta = str(status['timestamp'] - item['timestamp']).split(':')
+                            scoring_time.append(round(int(delta[0]) * 60 + int(delta[1]) + int(delta[2]) / 60, 1))
+                            logging.debug(
+                                f'scoring_time append {round(int(delta[0]) * 60 + int(delta[1]) + int(delta[2]) / 60, 1)}')
+                            self.ids_stack.remove(status['credit_id'])
+                            logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack")
                             break
+        # убираем просроченные кредиты
+        if self.scoring_stuck_stack:
+            while datetime.datetime.now() - self.scoring_stuck_stack[0]['timestamp'] > datetime.timedelta(
+                    hours=STACK_DURATION):
+                credit = self.scoring_stuck_stack.popleft()
+                self.ids_stack.remove(credit['credit_id'])
+                logging.debug(f"Remove {credit['credit_id']} from scoring_stuck_stack")
+        # апдейтим количество кредитов зависших на скоринге
+        self.scoring_stuck_day.append((self.start_time, len(self.scoring_stuck_stack)))
         if scoring_time:
-            self.scoring_time.append((self.last_time, round(sum(scoring_time) / len(scoring_time), 1)))
-        self.approves.append((self.last_time, approves))
+            self.scoring_time.append((self.start_time, round(sum(scoring_time) / len(scoring_time), 1)))
+        self.approves.append((self.start_time, approves))
 
     def check_person_stacks(self, persons):
         # добавляем новые заявки
         for person in persons:
             if person['stage'] == 6:
                 self.stage_6_stack.append(person)
+                logging.debug(f"stage_6_stack.append {person}")
                 if person in self.except_6_stack:
                     self.except_6_stack.remove(person)
             else:
                 self.except_6_stack.append(person)
+                logging.debug(f"except_6_stack.append {person}")
         # убираем просроченные заявки
         if self.stage_6_stack:
-            while self.last_time - self.stage_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-                self.stage_6_stack.popleft()
+            while datetime.datetime.now() - self.stage_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
+                x = self.stage_6_stack.popleft()
+                logging.debug(f"Remove {x} from stage_6_stack")
         if self.except_6_stack:
-            while self.last_time - self.except_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-                self.except_6_stack.popleft()
+            while datetime.datetime.now() - self.except_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
+                x = self.except_6_stack.popleft()
+                logging.debug(f"Remove {x} from except_6_stack")
         # апдейтим количества заявок
-        self.complete_bids_day.append((self.last_time, len(self.stage_6_stack)))
-        self.incomplete_bids_day.append((self.last_time, len(self.except_6_stack)))
-        self.complete_registration_day.append(
-            (self.last_time, len(self.stage_6_stack) / (len(self.stage_6_stack) + len(self.except_6_stack)))
-        )
+        self.complete_bids_day.append((self.start_time, len(self.stage_6_stack)))
+        self.incomplete_bids_day.append((self.start_time, len(self.except_6_stack)))
+        if self.stage_6_stack or self.except_6_stack:
+            self.complete_registration_day.append(
+                (self.start_time, len(self.stage_6_stack) / (len(self.stage_6_stack) + len(self.except_6_stack)))
+            )
 
-    def check_credits_stack(self, credits):
-        # добавляем новые кредиты
-        for credit in credits:
-            if credit['status'] == 2 and credit in self.scoring_stuck_stack:
-                self.scoring_stuck_stack.remove(credit)
-                self.ids_stack.remove(credit['id'])
-            if credit['status'] == 0:
-                self.ids_stack.add(credit['id'])
-                self.scoring_stuck_stack.append(credit)
-        # убираем просроченные кредиты
-        if self.scoring_stuck_stack:
-            while self.last_time - self.scoring_stuck_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-                credit = self.scoring_stuck_stack.popleft()
-                self.ids_stack.remove(credit['id'])
-        # апдейтим количество кредитов зависших на скоринге
-        self.scoring_stuck_day.append((self.last_time, len(self.scoring_stuck_stack)))
 
 if __name__ == '__main__':
     bids = [(datetime.datetime(2020, 5, 3, 17, 58, 16), 3), (datetime.datetime(2020, 5, 3, 18, 3, 16), 4),

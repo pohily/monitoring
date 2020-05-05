@@ -1,20 +1,17 @@
+import datetime
 import logging
 import os
-import time
 from configparser import ConfigParser
 from contextlib import closing
 from sys import argv
-import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoMinorLocator
-import matplotlib.animation as animation
-import datetime
 from time import sleep
 
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import pymysql
-import schedule
+from matplotlib.ticker import AutoMinorLocator
 from pymysql.cursors import DictCursor
 
-from constants import TIME_DELTA
 from monitor import Monitor
 
 
@@ -28,13 +25,6 @@ def monitoring(monitor, db_name='ru_backend'):
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         logging.info(f"Выполняем запросы в DB {monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')} - {monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        with connection.cursor() as cursor:
-            query = f"SELECT id, status, create_ts FROM credit " \
-                    f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
-            cursor.execute(query)
-            credits = []
-            for row in cursor:
-                credits.append(row)
         with connection.cursor() as cursor:
             query = f"SELECT id, stage, create_ts FROM person " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
@@ -54,11 +44,10 @@ def monitoring(monitor, db_name='ru_backend'):
     monitor.find_metrics(persons, statuses)
     # check and save credit and person stacks
     monitor.check_person_stacks(persons)
-    monitor.check_credits_stack(credits)
     monitor.update_time()
 
 def draw_graphs(monitor):
-    fig, ax = plt.subplots(figsize=(14, 8))
+    fig, ax = plt.subplots(figsize=(14, 7))
 
     def get_data(*args):
         #1 FT
@@ -73,7 +62,7 @@ def draw_graphs(monitor):
         #3 TF
         elif monitor.real_time and not monitor.start:
             while datetime.datetime.now() < monitor.last_time:
-                logging.debug('Sleep until TIME_DELTA pass')
+                logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
                 sleep(10)
             monitoring(monitor)
 
@@ -128,20 +117,7 @@ def main():
 
     monitor = Monitor(time_shift)
     draw_graphs(monitor)
-    """
-    if time_shift:
-        count = 1
-        while monitor.last_time < monitor.NOW:
-            count += 1
-            logging.debug(f'Запуск {count}')
-            monitoring(monitor)
 
-    schedule.every(TIME_DELTA).minutes.do(monitoring, monitor=monitor)
-    #schedule.every(TIME_DELTA).minutes.do(monitoring, monitor=monitor, db_name='kz_backend')
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)"""
 
 if __name__ == '__main__':
     main()
