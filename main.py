@@ -58,21 +58,25 @@ def monitoring(monitor, db_name='ru_backend'):
     monitor.update_time()
 
 def draw_graphs(monitor):
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(14, 8))
 
     def get_data(*args):
-        if monitor.last_time < monitor.NOW:
+        #1 FT
+        if not monitor.real_time and monitor.start and monitor.last_time < monitor.NOW:
             monitoring(monitor)
+        #2 TT
         else:
-            monitor.time_shift = True
-        if monitor.time_shift and monitor.start:
+            monitor.real_time = True
+        if monitor.real_time and monitor.start:
             monitoring(monitor)
             monitor.start = False
-        elif not monitor.time_shift and not monitor.start:
-            while datetime.datetime.now() < monitor.last_time + TIME_DELTA:
-                sleep(1)
+        #3 TF
+        elif monitor.real_time and not monitor.start:
+            while datetime.datetime.now() < monitor.last_time:
+                logging.debug('Sleep until TIME_DELTA pass')
+                sleep(10)
             monitoring(monitor)
-        monitor.time_shift = False
+
 
         ax.clear()
         ax.set_title("Россия", fontsize=16)
@@ -84,19 +88,15 @@ def draw_graphs(monitor):
         plt.plot([i[0] for i in monitor.complete_registration_day],
                  [i[1] for i in monitor.complete_registration_day], 'o-', label="% прохождения")
         plt.plot([i[0] for i in monitor.scoring_stuck_day],
-                 [i[1] for i in monitor.scoring_stuck_day], 'o-', label="Зависшие в скоринге")
+                 [i[1] for i in monitor.scoring_stuck_day], 'o-', label="В скоринге")
         plt.plot([i[0] for i in monitor.new_bids],
                  [i[1] for i in monitor.new_bids], 'o-', label="Новые заявки")
         plt.plot([i[0] for i in monitor.approves],
                  [i[1] for i in monitor.approves], 'o-', label="Одобрения")
-        plt.plot([i[0] for i in monitor.pastdue],
-                 [i[1] for i in monitor.pastdue], 'o-', label="В просрочку")
-        plt.plot([i[0] for i in monitor.pastdue_repayment],
-                 [i[1] for i in monitor.pastdue_repayment], 'o-', label="Из просрочки")
         plt.plot([i[0] for i in monitor.scoring_time],
                  [i[1] for i in monitor.scoring_time], 'o-', label="Время скоринга")
 
-        ax.legend(bbox_to_anchor=(1, 0.6))
+        ax.legend(loc='upper left')
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(which='major', length=10, width=2)

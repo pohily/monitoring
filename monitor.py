@@ -22,32 +22,31 @@ class Monitor():
         self.scoring_stuck_day = []         # Текущее количество кредитов зависших на скоринге за сутки (STACK_DURATION)
         self.new_bids = []                  # Количество новых заявок за TIME_DELTA
         self.approves = []                  # Количество одобрений за TIME_DELTA
-        self.pastdue = []                   # Количество уходов в просрочку за TIME_DELTA
-        self.pastdue_repayment = []         # Количество выхода из просрочки за TIME_DELTA
         self.scoring_time = []              # среднее время скоринга за TIME_DELTA - в минутах
         ############## под вопросом
-        self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
-        self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
+        #self.pastdue = []                   # Количество уходов в просрочку за TIME_DELTA
+        #self.pastdue_repayment = []         # Количество выхода из просрочки за TIME_DELTA
+        #self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
+        #self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
 
         self.NOW = datetime.datetime.now()
         self.start = True       # первый раз данные получаются без задержки
-        self.time_shift = False # флаг выполненного time_shift
-        if not time_shift:
-            self.last_time = self.NOW
-            self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
-        else:
+        self.real_time = False # флаг выполненного time_shift
+        if time_shift:
             self.start_time = self.NOW - datetime.timedelta(hours=int(time_shift))
             self.last_time = self.start_time + datetime.timedelta(minutes=TIME_DELTA)
+        else:
+            self.last_time = self.NOW
+            self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
+
+    def update_time(self):
+        self.start_time = self.last_time
+        self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
     def find_metrics(self, persons, statuses):
         self.new_bids.append((self.last_time, len(persons)))
-        pastdue, pastdue_repayment, approves, scoring_time = 0, 0, 0, []
+        approves, scoring_time = 0, []
         for status in statuses:
-            if status['to'] == 4:
-                pastdue += 1
-            if (status['from'] == 4 and status['to'] == 2) or (status['from'] == 4 and status['to'] == 3):
-                pastdue_repayment += 1
-            # проверка одобрений
             if status['from'] == 1 and status['to'] == 2:
                 approves += 1
                 if status['credit_id'] in self.ids_stack:
@@ -61,8 +60,6 @@ class Monitor():
         if scoring_time:
             self.scoring_time.append((self.last_time, round(sum(scoring_time) / len(scoring_time), 1)))
         self.approves.append((self.last_time, approves))
-        self.pastdue.append((self.last_time, pastdue))
-        self.pastdue_repayment.append((self.last_time, pastdue_repayment))
 
     def check_person_stacks(self, persons):
         # добавляем новые заявки
@@ -103,10 +100,6 @@ class Monitor():
                 self.ids_stack.remove(credit['id'])
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.last_time, len(self.scoring_stuck_stack)))
-
-    def update_time(self):
-        self.start_time = self.last_time
-        self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
 if __name__ == '__main__':
     bids = [(datetime.datetime(2020, 5, 3, 17, 58, 16), 3), (datetime.datetime(2020, 5, 3, 18, 3, 16), 4),
