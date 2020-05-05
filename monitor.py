@@ -74,7 +74,8 @@ class Monitor():
             while datetime.datetime.now() - self.scoring_stuck_stack[0]['timestamp'] > datetime.timedelta(
                     hours=STACK_DURATION):
                 credit = self.scoring_stuck_stack.popleft()
-                self.ids_stack.remove(credit['credit_id'])
+                if credit['credit_id'] in self.ids_stack:
+                    self.ids_stack.remove(credit['credit_id'])
                 logging.debug(f"Remove {credit['credit_id']} from scoring_stuck_stack")
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.start_time, len(self.scoring_stuck_stack)))
@@ -107,7 +108,7 @@ class Monitor():
         self.incomplete_bids_day.append((self.start_time, len(self.except_6_stack)))
         if self.stage_6_stack or self.except_6_stack:
             self.complete_registration_day.append(
-                (self.start_time, len(self.stage_6_stack) / (len(self.stage_6_stack) + len(self.except_6_stack)))
+                (self.start_time, 100 * len(self.stage_6_stack) / (len(self.stage_6_stack) + len(self.except_6_stack)))
             )
 
 

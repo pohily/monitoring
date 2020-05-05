@@ -68,22 +68,44 @@ def draw_graphs(monitor):
 
 
         ax.clear()
-        ax.set_title("Россия", fontsize=16)
+        ax.set_title(f"Россия. В скоринге {monitor.scoring_stuck_day[-1][1]} заявок", fontsize=16)
         ax.set_xlabel("Время", fontsize=14)
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
+
+        if monitor.complete_registration_day:
+            label_complete_registration_day = f"% прохождения {round(monitor.complete_registration_day[-1][1])}"
+        else:
+            label_complete_registration_day = "% прохождения"
+        if monitor.new_bids:
+            label_new_bids = f"Новые заявки {monitor.new_bids[-1][1]}"
+        else:
+            label_new_bids = "Новые заявки"
+        if monitor.approves:
+            label_approves = f"Одобрения {monitor.approves[-1][1]}"
+        else:
+            label_approves = "Одобрения"
+        if monitor.scoring_time:
+            label_scoring_time = f"Время скоринга {monitor.scoring_time[-1][1]} мин."
+        else:
+            label_scoring_time = "Время скоринга"
+
         # draw graphs
         logging.info('Рисуем графики')
         plt.plot([i[0] for i in monitor.complete_registration_day],
-                 [i[1] for i in monitor.complete_registration_day], 'o-', label="% прохождения")
-        plt.plot([i[0] for i in monitor.scoring_stuck_day],
-                 [i[1] for i in monitor.scoring_stuck_day], 'o-', label="В скоринге")
+                 [i[1] for i in monitor.complete_registration_day], 'o-', color='red',
+                 label=label_complete_registration_day)
+        #plt.plot([i[0] for i in monitor.scoring_stuck_day],
+                 #[i[1] for i in monitor.scoring_stuck_day], 'o-', color='yellow', label="В скоринге")
         plt.plot([i[0] for i in monitor.new_bids],
-                 [i[1] for i in monitor.new_bids], 'o-', label="Новые заявки")
+                 [i[1] for i in monitor.new_bids], 'o-', color='blue',
+                 label=label_new_bids)
         plt.plot([i[0] for i in monitor.approves],
-                 [i[1] for i in monitor.approves], 'o-', label="Одобрения")
+                 [i[1] for i in monitor.approves], 'o-', color='green',
+                 label=label_approves)
         plt.plot([i[0] for i in monitor.scoring_time],
-                 [i[1] for i in monitor.scoring_time], 'o-', label="Время скоринга")
+                 [i[1] for i in monitor.scoring_time], 'o-', color='magenta',
+                 label=label_scoring_time)
 
         ax.legend(loc='upper left')
         ax.xaxis.set_minor_locator(AutoMinorLocator())
