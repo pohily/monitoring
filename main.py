@@ -41,9 +41,8 @@ def monitoring(monitor, db_name='ru_backend'):
                 statuses.append(row)
     # find metrics
     logging.info('Рассчет метрик')
-    monitor.find_metrics(persons, statuses)
-    # check and save credit and person stacks
     monitor.check_person_stacks(persons)
+    monitor.find_metrics(persons, statuses)
     monitor.update_time()
 
 def draw_graphs(monitor):
@@ -68,7 +67,11 @@ def draw_graphs(monitor):
 
 
         ax.clear()
-        ax.set_title(f"Россия. В скоринге {monitor.scoring_stuck_day[-1][1]} заявок", fontsize=16)
+        ax.set_title(f"Россия. Всего заявок {monitor.total_bids_day} (из них повторных {monitor.repeat_bids_day}"
+                     f"), одобрено {monitor.approves_day}, "
+                     f"в скоринге {monitor.scoring_stuck_day[-1][1]} c "
+                     f"{(monitor.NOW - datetime.timedelta(hours=monitor.time_shift)).strftime('%d.%m.%y %H:%M')} "
+                     f"по {monitor.start_time.strftime('%d.%m.%y %H:%M')}", fontsize=15)
         ax.set_xlabel("Время", fontsize=14)
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
