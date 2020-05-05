@@ -1,15 +1,17 @@
+import datetime
 import logging
 import os
-import time
 from configparser import ConfigParser
 from contextlib import closing
 from sys import argv
+from time import sleep
 
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import pymysql
-import schedule
+from matplotlib.ticker import AutoMinorLocator
 from pymysql.cursors import DictCursor
 
-from constants import TIME_DELTA
 from monitor import Monitor
 
 
@@ -22,14 +24,7 @@ def monitoring(monitor, db_name='ru_backend'):
                                  charset='utf8', cursorclass=DictCursor)) as connection:
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
-        logging.info('Выполняем запросы в DB')
-        with connection.cursor() as cursor:
-            query = f"SELECT id, status, create_ts FROM credit " \
-                    f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
-            cursor.execute(query)
-            credits = []
-            for row in cursor:
-                credits.append(row)
+        logging.info(f"Выполняем запросы в DB {monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')} - {monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')}")
         with connection.cursor() as cursor:
             query = f"SELECT id, stage, create_ts FROM person " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
@@ -46,16 +41,83 @@ def monitoring(monitor, db_name='ru_backend'):
                 statuses.append(row)
     # find metrics
     logging.info('Рассчет метрик')
-    monitor.find_metrics(persons, statuses)
-    # check and save credit and person stacks
     monitor.check_person_stacks(persons)
-    monitor.check_credits_stack(credits)
-    #draw graphs
-    logging.info('Рисуем графики')
-    monitor.draw_graphs()
+    monitor.find_metrics(persons, statuses)
     monitor.update_time()
 
+def draw_graphs(monitor):
+    fig, ax = plt.subplots(figsize=(14, 7))
 
+    def get_data(*args):
+        #1 FT
+        if not monitor.real_time and monitor.start and monitor.last_time < monitor.NOW:
+            monitoring(monitor)
+        #2 TT
+        else:
+            monitor.real_time = True
+        if monitor.real_time and monitor.start:
+            monitoring(monitor)
+            monitor.start = False
+        #3 TF
+        elif monitor.real_time and not monitor.start:
+            while datetime.datetime.now() < monitor.last_time:
+                logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
+                sleep(10)
+            monitoring(monitor)
+
+
+        ax.clear()
+        ax.set_title(f"Россия. Всего заявок {monitor.total_bids_day} (из них повторных {monitor.repeat_bids_day}"
+                     f"), одобрено {monitor.approves_day}, "
+                     f"в скоринге {monitor.scoring_stuck_day[-1][1]} c "
+                     f"{(monitor.NOW - datetime.timedelta(hours=monitor.time_shift)).strftime('%d.%m.%y %H:%M')} "
+                     f"по {monitor.start_time.strftime('%d.%m.%y %H:%M')}", fontsize=15)
+        ax.set_xlabel("Время", fontsize=14)
+        ax.grid(which="major", linewidth=1.2)
+        ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
+
+        if monitor.complete_registration_day:
+            label_complete_registration_day = f"% прохождения {round(monitor.complete_registration_day[-1][1])}"
+        else:
+            label_complete_registration_day = "% прохождения"
+        if monitor.new_bids:
+            label_new_bids = f"Новые заявки {monitor.new_bids[-1][1]}"
+        else:
+            label_new_bids = "Новые заявки"
+        if monitor.approves:
+            label_approves = f"Одобрения {monitor.approves[-1][1]}"
+        else:
+            label_approves = "Одобрения"
+        if monitor.scoring_time:
+            label_scoring_time = f"Время скоринга {monitor.scoring_time[-1][1]} мин."
+        else:
+            label_scoring_time = "Время скоринга"
+
+        # draw graphs
+        logging.info('Рисуем графики')
+        plt.plot([i[0] for i in monitor.complete_registration_day],
+                 [i[1] for i in monitor.complete_registration_day], 'o-', color='red',
+                 label=label_complete_registration_day)
+        #plt.plot([i[0] for i in monitor.scoring_stuck_day],
+                 #[i[1] for i in monitor.scoring_stuck_day], 'o-', color='yellow', label="В скоринге")
+        plt.plot([i[0] for i in monitor.new_bids],
+                 [i[1] for i in monitor.new_bids], 'o-', color='blue',
+                 label=label_new_bids)
+        plt.plot([i[0] for i in monitor.approves],
+                 [i[1] for i in monitor.approves], 'o-', color='green',
+                 label=label_approves)
+        plt.plot([i[0] for i in monitor.scoring_time],
+                 [i[1] for i in monitor.scoring_time], 'o-', color='magenta',
+                 label=label_scoring_time)
+
+        ax.legend(loc='upper left')
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.tick_params(which='major', length=10, width=2)
+        ax.tick_params(which='minor', length=5, width=1)
+
+    ani = animation.FuncAnimation(fig, get_data)
+    plt.show()
 
 def main():
     os.makedirs('logs', exist_ok=True)
@@ -73,20 +135,14 @@ def main():
             if len(argv) > 1:
                 time_shift = argv[1]
         else:
-            time_shift = 1
+            time_shift = 0
     except IndexError:
         logging.exception('Введите количество часов для построения графика!')
         raise Exception('Введите количество часов для построения графика!')
 
     monitor = Monitor(time_shift)
-    monitoring(monitor)
+    draw_graphs(monitor)
 
-    schedule.every(TIME_DELTA).minutes.do(monitoring, monitor=monitor)
-    #schedule.every(TIME_DELTA).minutes.do(monitoring, monitor=monitor, db_name='kz_backend')
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
 
 if __name__ == '__main__':
     main()
