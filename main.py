@@ -92,14 +92,19 @@ def draw_graphs(monitor):
             label_scoring_time = f"Время скоринга {monitor.scoring_time[-1][1]} мин."
         else:
             label_scoring_time = "Время скоринга"
+        if monitor.scoring_time:
+            label_scoring_stuck_day = f"Застряли в скоринге {monitor.scoring_stuck_day[-1][1]}"
+        else:
+            label_scoring_stuck_day = "Застряли в скоринге"
 
         # draw graphs
         logging.info('Рисуем графики')
         plt.plot([i[0] for i in monitor.complete_registration_day],
                  [i[1] for i in monitor.complete_registration_day], 'o-', color='red',
                  label=label_complete_registration_day)
-        #plt.plot([i[0] for i in monitor.scoring_stuck_day],
-                 #[i[1] for i in monitor.scoring_stuck_day], 'o-', color='yellow', label="В скоринге")
+        plt.plot([i[0] for i in monitor.scoring_stuck_day],
+                 [i[1] for i in monitor.scoring_stuck_day], 'o-', color='yellow',
+                 label=label_scoring_stuck_day)
         plt.plot([i[0] for i in monitor.new_bids],
                  [i[1] for i in monitor.new_bids], 'o-', color='blue',
                  label=label_new_bids)
