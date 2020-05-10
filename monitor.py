@@ -1,12 +1,14 @@
 import datetime
 from decimal import Decimal
+import os
 from collections import deque
+from configparser import ConfigParser
 import logging
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
-from constants import TIME_DELTA, STACK_DURATION
+from constants import TIME_DELTA, STACK_DURATION, KZ
 
 
 class Monitor():
@@ -34,11 +36,25 @@ class Monitor():
         #self.pastdue_repayment = []         # Количество выхода из просрочки за TIME_DELTA
         #self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
         #self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
-        
+
         if not country:
             self.country = 'Россия'
         else:
             self.country = country
+        if self.country in KZ:
+            self.db_name = 'kz_backend'
+            self.country = 'Казахстан'
+        else:
+            self.db_name = 'ru_backend'
+
+        config = ConfigParser()
+        config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+        config.read(config_file)
+        self.host = config['db']['host']
+        self.port = int(config['db']['port'])
+        self.user = config['db']['user']
+        self.password = config['db']['password']
+
         self.NOW = datetime.datetime.now()
         self.time_shift = None
         self.start = True       # первый раз данные получаются без задержки

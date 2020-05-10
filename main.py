@@ -13,24 +13,15 @@ from matplotlib.ticker import AutoMinorLocator
 from pymysql.cursors import DictCursor
 
 from monitor import Monitor
-from constants import KZ
 
 
 def monitoring(monitor):
-    config = ConfigParser()
-    config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
-    config.read(config_file)
-    if monitor.country in KZ:
-        db_name = 'kz_backend'
-        monitor.country = 'Казахстан'
-    else:
-        db_name = 'ru_backend'
-    with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
-                                 password=config['db']['password'], db=db_name,
-                                 charset='utf8', cursorclass=DictCursor)) as connection:
+    with closing(pymysql.connect(host=monitor.host, port=monitor.port, user=monitor.user, password=monitor.password,
+                                 db=monitor.db_name, charset='utf8', cursorclass=DictCursor)) as connection:
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
-        logging.info(f"Выполняем запросы в DB {monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')} - {monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logging.info(f"Выполняем запросы в DB {monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')} "
+                     f"- {monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')}")
         with connection.cursor() as cursor:
             query = f"SELECT id, stage, create_ts FROM person " \
                     f"where create_ts > '{start_time}' and create_ts < '{last_time}'"
@@ -45,39 +36,39 @@ def monitoring(monitor):
             statuses = []
             for row in cursor:
                 statuses.append(row)
-    # find metrics
+
     logging.info('Рассчет метрик')
     monitor.check_person_stacks(persons)
     monitor.find_metrics(persons, statuses)
     monitor.update_time()
 
+
 def draw_graphs(monitor):
     fig, ax = plt.subplots(figsize=(19, 10))
 
     def get_data(*args):
-        #1 FT
+        # 1 FT
         if not monitor.real_time and monitor.start and monitor.last_time < monitor.NOW:
             monitoring(monitor)
-        #2 TT
+        # 2 TT
         else:
             monitor.real_time = True
         if monitor.real_time and monitor.start:
             monitoring(monitor)
             monitor.start = False
-        #3 TF
+        # 3 TF
         elif monitor.real_time and not monitor.start:
             while datetime.datetime.now() < monitor.last_time:
                 logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
                 sleep(10)
             monitoring(monitor)
 
-
         ax.clear()
         ax.set_title(f"{monitor.country}. "
                      f"C {(monitor.NOW - datetime.timedelta(hours=monitor.time_shift)).strftime('%H:%M %d.%m.')}"
                      f" по {monitor.start_time.strftime('%H:%M %d.%m.')} "
                      f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"
-                     f", одобрено {monitor.approves_day}", fontsize=15)
+                     f", одобрено - {monitor.approves_day}", fontsize=15)
 
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
@@ -95,9 +86,9 @@ def draw_graphs(monitor):
         else:
             label_approves = "Одобрения"
         if monitor.scoring_time:
-            label_scoring_time = f"Время скоринга {monitor.scoring_time[-1][1]} мин."
+            label_scoring_time = f"Ср. время скоринга {monitor.scoring_time[-1][1]} мин."
         else:
-            label_scoring_time = "Время скоринга"
+            label_scoring_time = "Ср. время скоринга"
         if monitor.scoring_time:
             label_scoring_stuck_day = f"Застряли в скоринге {monitor.scoring_stuck_day[-1][1]}"
         else:
@@ -129,6 +120,7 @@ def draw_graphs(monitor):
     ani = animation.FuncAnimation(fig, get_data)
     plt.show()
 
+
 def main():
     os.makedirs('logs', exist_ok=True)
     level = logging.INFO
@@ -146,7 +138,7 @@ def main():
                 country = argv[2]
             time_shift = argv[1]
         else:
-            time_shift = 0
+            time_shift = 1
     except IndexError:
         logging.exception('Введите количество часов для построения графика!')
         raise Exception('Введите количество часов для построения графика!')
