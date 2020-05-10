@@ -13,12 +13,18 @@ from matplotlib.ticker import AutoMinorLocator
 from pymysql.cursors import DictCursor
 
 from monitor import Monitor
+from constants import KZ
 
 
-def monitoring(monitor, db_name='ru_backend'):
+def monitoring(monitor):
     config = ConfigParser()
     config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
     config.read(config_file)
+    if monitor.country in KZ:
+        db_name = 'kz_backend'
+        monitor.country = 'Казахстан'
+    else:
+        db_name = 'ru_backend'
     with closing(pymysql.connect(host=config['db']['host'], port=int(config['db']['port']), user=config['db']['user'],
                                  password=config['db']['password'], db=db_name,
                                  charset='utf8', cursorclass=DictCursor)) as connection:
@@ -46,7 +52,7 @@ def monitoring(monitor, db_name='ru_backend'):
     monitor.update_time()
 
 def draw_graphs(monitor):
-    fig, ax = plt.subplots(figsize=(14, 7))
+    fig, ax = plt.subplots(figsize=(19, 10))
 
     def get_data(*args):
         #1 FT
@@ -67,12 +73,12 @@ def draw_graphs(monitor):
 
 
         ax.clear()
-        ax.set_title(f"Россия. Всего заявок {monitor.total_bids_day} (из них повторных {monitor.repeat_bids_day}"
-                     f"), одобрено {monitor.approves_day}, "
-                     f"в скоринге {monitor.scoring_stuck_day[-1][1]} c "
-                     f"{(monitor.NOW - datetime.timedelta(hours=monitor.time_shift)).strftime('%d.%m.%y %H:%M')} "
-                     f"по {monitor.start_time.strftime('%d.%m.%y %H:%M')}", fontsize=15)
-        ax.set_xlabel("Время", fontsize=14)
+        ax.set_title(f"{monitor.country}. "
+                     f"C {(monitor.NOW - datetime.timedelta(hours=monitor.time_shift)).strftime('%H:%M %d.%m.')}"
+                     f" по {monitor.start_time.strftime('%H:%M %d.%m.')} "
+                     f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"
+                     f", одобрено {monitor.approves_day}", fontsize=15)
+
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
 
@@ -100,10 +106,10 @@ def draw_graphs(monitor):
         # draw graphs
         logging.info('Рисуем графики')
         plt.plot([i[0] for i in monitor.complete_registration_day],
-                 [i[1] for i in monitor.complete_registration_day], 'o-', color='red',
+                 [i[1] for i in monitor.complete_registration_day], 'o-', color='brown',
                  label=label_complete_registration_day)
         plt.plot([i[0] for i in monitor.scoring_stuck_day],
-                 [i[1] for i in monitor.scoring_stuck_day], 'o-', color='yellow',
+                 [i[1] for i in monitor.scoring_stuck_day], 'o-', color='red',
                  label=label_scoring_stuck_day)
         plt.plot([i[0] for i in monitor.new_bids],
                  [i[1] for i in monitor.new_bids], 'o-', color='blue',
@@ -116,7 +122,6 @@ def draw_graphs(monitor):
                  label=label_scoring_time)
 
         ax.legend(loc='upper left')
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(which='major', length=10, width=2)
         ax.tick_params(which='minor', length=5, width=1)
@@ -133,19 +138,19 @@ def main():
     config = ConfigParser()
     config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
     config.read(config_file)
-    time_shift = None
+    country = time_shift = None
     try:
         COMMAND_LINE_INPUT = eval(config['options']['COMMAND_LINE_INPUT'])
         if COMMAND_LINE_INPUT:
-            if len(argv) > 1:
-                time_shift = argv[1]
+            if len(argv) == 3:
+                country = argv[2]
+            time_shift = argv[1]
         else:
             time_shift = 0
     except IndexError:
         logging.exception('Введите количество часов для построения графика!')
         raise Exception('Введите количество часов для построения графика!')
-
-    monitor = Monitor(time_shift)
+    monitor = Monitor(time_shift, country=country)
     draw_graphs(monitor)
 
 
