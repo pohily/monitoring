@@ -1,7 +1,6 @@
 import datetime
 from decimal import Decimal
 import os
-from collections import deque
 from configparser import ConfigParser
 import logging
 
@@ -21,9 +20,9 @@ class Monitor():
         self.repeat_bids_day = 0            # Текущее общее количество повторных заявок за сутки (STACK_DURATION)
         self.total_bids_day = 0             # Текущее общее количество заявок за сутки (STACK_DURATION)
         ############## stacks
-        self.stage_6_stack = deque()        # persons on stage 6 за сутки (STACK_DURATION)
+        self.stage_6_stack = {}             # persons on stage 6 за сутки (STACK_DURATION)
         self.stage_6_stack_prev = 0         # persons on stage 6 за сутки (STACK_DURATION) в предыдущий период
-        self.except_6_stack = deque()       # persons on stage < 6 за сутки (STACK_DURATION)
+        self.except_6_stack = {}            # persons on stage < 6 за сутки (STACK_DURATION)
         self.scoring_stuck_stack = {}       # credits stuck in scoring
         ############## metrics
         self.complete_registration_day = [] # Текущий % прохождения цепочки за сутки (STACK_DURATION)
@@ -32,8 +31,6 @@ class Monitor():
         self.approves = []                  # Количество одобрений за TIME_DELTA
         self.scoring_time = []              # среднее время скоринга за TIME_DELTA - в минутах
         ############## под вопросом
-        #self.pastdue = []                   # Количество уходов в просрочку за TIME_DELTA
-        #self.pastdue_repayment = []         # Количество выхода из просрочки за TIME_DELTA
         #self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
         #self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
 
@@ -55,6 +52,7 @@ class Monitor():
         self.user = config['db']['user']
         self.password = config['db']['password']
 
+        self.first_monitoring = True # flag for updating time
         self.NOW = datetime.datetime.now()
         self.time_shift = None
         self.start = True       # первый раз данные получаются без задержки
@@ -66,6 +64,17 @@ class Monitor():
         else:
             self.last_time = self.NOW
             self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
+
+    @staticmethod
+    def remove_old(stack, name, value_name, time_name):
+        to_del = []
+        if stack:
+            for key, value in stack.items():
+                if datetime.datetime.now() - value[time_name] > datetime.timedelta(hours=STACK_DURATION):
+                    logging.debug(f"Remove {value[value_name]} from {name}")
+                    to_del.append(key)
+            for key in to_del:
+                del stack[key]
 
     def update_time(self):
         self.start_time = self.last_time
@@ -101,14 +110,7 @@ class Monitor():
 
         self.repeat_bids_day += self.total_bids_day - total_bids_day_prev - (len(self.stage_6_stack) - self.stage_6_stack_prev)
         # убираем просроченные кредиты
-        to_del = []
-        if self.scoring_stuck_stack:
-            for key, value in self.scoring_stuck_stack.items():
-                if datetime.datetime.now() - value['timestamp'] > datetime.timedelta(hours=STACK_DURATION):
-                    logging.debug(f"Remove {value['credit_id']} from scoring_stuck_stack")
-                    to_del.append(key)
-            for key in to_del:
-                del self.scoring_stuck_stack[key]
+        Monitor.remove_old(self.scoring_stuck_stack, 'scoring_stuck_stack', 'credit_id', 'timestamp')
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.start_time, len(self.scoring_stuck_stack)))
         if scoring_time:
@@ -127,22 +129,16 @@ class Monitor():
         # добавляем новые заявки
         for person in persons:
             if person['stage'] == 6:
-                self.stage_6_stack.append(person)
-                logging.debug(f"stage_6_stack.append {person}")
-                if person in self.except_6_stack:
-                    self.except_6_stack.remove(person)
+                self.stage_6_stack[person['id']] = person
+                logging.debug(f"stage_6_stack append {person}")
+                if person['id'] in self.except_6_stack:
+                    del self.except_6_stack[person['id']]
             else:
-                self.except_6_stack.append(person)
-                logging.debug(f"except_6_stack.append {person}")
+                self.except_6_stack[person['id']] = person
+                logging.debug(f"except_6_stack append {person}")
         # убираем просроченные заявки
-        if self.stage_6_stack:
-            while datetime.datetime.now() - self.stage_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-                x = self.stage_6_stack.popleft()
-                logging.debug(f"Remove {x} from stage_6_stack")
-        if self.except_6_stack:
-            while datetime.datetime.now() - self.except_6_stack[0]['create_ts'] > datetime.timedelta(hours=STACK_DURATION):
-                x = self.except_6_stack.popleft()
-                logging.debug(f"Remove {x} from except_6_stack")
+        Monitor.remove_old(self.stage_6_stack, 'stage_6_stack', 'id', 'create_ts')
+        Monitor.remove_old(self.except_6_stack, 'except_6_stack', 'id', 'create_ts')
         # апдейтим количества заявок
         self.complete_bids_day.append((self.start_time, len(self.stage_6_stack)))
         self.incomplete_bids_day.append((self.start_time, len(self.except_6_stack)))

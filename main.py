@@ -13,11 +13,15 @@ from matplotlib.ticker import AutoMinorLocator
 from pymysql.cursors import DictCursor
 
 from monitor import Monitor
+from constants import STACK_DURATION
 
 
 def monitoring(monitor):
+    if not monitor.first_monitoring:
+        monitor.update_time()
     with closing(pymysql.connect(host=monitor.host, port=monitor.port, user=monitor.user, password=monitor.password,
                                  db=monitor.db_name, charset='utf8', cursorclass=DictCursor)) as connection:
+        monitor.first_monitoring = False
         start_time = monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')
         last_time = monitor.last_time.strftime('%Y-%m-%d %H:%M:%S')
         logging.info(f"Выполняем запросы в DB {monitor.start_time.strftime('%Y-%m-%d %H:%M:%S')} "
@@ -40,7 +44,6 @@ def monitoring(monitor):
     logging.info('Рассчет метрик')
     monitor.check_person_stacks(persons)
     monitor.find_metrics(persons, statuses)
-    monitor.update_time()
 
 
 def draw_graphs(monitor):
@@ -64,11 +67,15 @@ def draw_graphs(monitor):
             monitoring(monitor)
 
         ax.clear()
-        ax.set_title(f"{monitor.country}. "
-                     f"C {(monitor.NOW - datetime.timedelta(hours=monitor.time_shift)).strftime('%H:%M %d.%m.')}"
+        # keep monitoring time interval up to STACK_DURATION
+        start_time = (monitor.NOW - datetime.timedelta(hours=monitor.time_shift))
+        if start_time - monitor.start_time > datetime.timedelta(hours=STACK_DURATION):
+            start_time = monitor.start_time - datetime.timedelta(hours=STACK_DURATION)
+            logging.debug(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
+        ax.set_title(f"{monitor.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                      f" по {monitor.start_time.strftime('%H:%M %d.%m.')} "
                      f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"
-                     f", одобрено - {monitor.approves_day}", fontsize=15)
+                     f", одобрено - {monitor.approves_day}", fontsize=16)
 
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
@@ -96,21 +103,21 @@ def draw_graphs(monitor):
 
         # draw graphs
         logging.info('Рисуем графики')
-        plt.plot([i[0] for i in monitor.complete_registration_day],
-                 [i[1] for i in monitor.complete_registration_day], 'o-', color='brown',
-                 label=label_complete_registration_day)
+        plt.plot([i[0] for i in monitor.scoring_time],
+                 [i[1] for i in monitor.scoring_time], 'o-', color='blue',
+                 label=label_scoring_time)
         plt.plot([i[0] for i in monitor.scoring_stuck_day],
                  [i[1] for i in monitor.scoring_stuck_day], 'o-', color='red',
                  label=label_scoring_stuck_day)
+        plt.plot([i[0] for i in monitor.complete_registration_day],
+                 [i[1] for i in monitor.complete_registration_day], 'o-', color='brown',
+                 label=label_complete_registration_day)
         plt.plot([i[0] for i in monitor.new_bids],
-                 [i[1] for i in monitor.new_bids], 'o-', color='blue',
+                 [i[1] for i in monitor.new_bids], 'o-', color='magenta',
                  label=label_new_bids)
         plt.plot([i[0] for i in monitor.approves],
                  [i[1] for i in monitor.approves], 'o-', color='green',
                  label=label_approves)
-        plt.plot([i[0] for i in monitor.scoring_time],
-                 [i[1] for i in monitor.scoring_time], 'o-', color='magenta',
-                 label=label_scoring_time)
 
         ax.legend(loc='upper left')
         ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -123,7 +130,7 @@ def draw_graphs(monitor):
 
 def main():
     os.makedirs('logs', exist_ok=True)
-    level = logging.INFO
+    level = logging.DEBUG
     handlers = [logging.FileHandler('logs/log.txt'), logging.StreamHandler()]
     format = u'%(filename)s[LINE:%(lineno)d]# %(levelname)-8s [%(asctime)s]  %(message)s'
     logging.basicConfig(level=level, format=format, handlers=handlers)
