@@ -53,10 +53,12 @@ class Monitor():
         self.password = config['db']['password']
 
         self.first_monitoring = True # flag for updating time
+
         self.NOW = datetime.datetime.now()
         self.time_shift = None
+
         self.start = True       # первый раз данные получаются без задержки
-        self.real_time = False # флаг выполненного time_shift
+        self.real_time = False  # флаг выполненного time_shift
         if time_shift:
             self.time_shift = int(time_shift)
             self.start_time = self.NOW - datetime.timedelta(hours=self.time_shift)
@@ -70,7 +72,7 @@ class Monitor():
         to_del = []
         if stack:
             for key, value in stack.items():
-                if datetime.datetime.now() - value[time_name] > datetime.timedelta(hours=STACK_DURATION):
+                if abs(datetime.datetime.now() - value[time_name]) > datetime.timedelta(hours=STACK_DURATION):
                     logging.debug(f"Remove {value[value_name]} from {name}")
                     to_del.append(key)
             for key in to_del:
@@ -90,21 +92,19 @@ class Monitor():
             if status['from'] == 0 and status['to'] == 0:
                 self.total_bids_day += 1
                 self.scoring_stuck_stack[status['credit_id']] = status
-                logging.debug(f"append {status['credit_id']} to scoring_stuck_stack")
-            # approve fails after scoring
-            if status['from'] == 0 and status['to'] == 100:
-                if status['credit_id'] in self.scoring_stuck_stack:
-                    del self.scoring_stuck_stack[status['credit_id']]
-                    logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack")
-            # approves
+                logging.debug(f"append {status} to scoring_stuck_stack")
             if status['from'] == 1 and status['to'] == 2:
                 approves += 1
                 self.approves_day += 1
+            if status['to']:
                 # scoring_time
                 if status['credit_id'] in self.scoring_stuck_stack:
                     # превращаем timedelta в количество минут
                     delta = str(status['timestamp'] - self.scoring_stuck_stack[status['credit_id']]['timestamp']).split(':')
                     scoring_time.append(round(int(delta[0]) * 60 + int(delta[1]) + int(delta[2]) / 60, 1))
+                    logging.debug(f"scoring_time for {status['credit_id']} "
+                                  f"from {self.scoring_stuck_stack[status['credit_id']]['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}"
+                                  f"to {status['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                     del self.scoring_stuck_stack[status['credit_id']]
                     logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack")
 
@@ -114,7 +114,8 @@ class Monitor():
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.start_time, len(self.scoring_stuck_stack)))
         if scoring_time:
-            last_scoring_time = sum(scoring_time) / len(scoring_time)
+            logging.debug(f'scoring_time - {scoring_time}')
+            last_scoring_time = round(sum(scoring_time) / len(scoring_time), 1)
             if self.scoring_time:
                 time = round((sum([i[1] for i in self.scoring_time]) + last_scoring_time) / (len(self.scoring_time) + 1), 1)
                 self.scoring_time.append((self.start_time, time))

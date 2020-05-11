@@ -69,21 +69,27 @@ def draw_graphs(monitor):
         ax.clear()
         # keep monitoring time interval up to STACK_DURATION
         start_time = (monitor.NOW - datetime.timedelta(hours=monitor.time_shift))
-        if start_time - monitor.start_time > datetime.timedelta(hours=STACK_DURATION):
+        delta = abs(start_time - monitor.start_time)
+        logging.debug(f"start_time - {start_time.strftime('%H:%M:%S %d.%m.')}, "
+                      f"monitor.start_time - {monitor.start_time.strftime('%H:%M:%S %d.%m.')}, "
+                      f"monitor.last_time - {monitor.last_time.strftime('%H:%M:%S %d.%m.')}, "
+                      f"delta = {abs(delta)}")
+        if delta > datetime.timedelta(hours=STACK_DURATION):
             start_time = monitor.start_time - datetime.timedelta(hours=STACK_DURATION)
-            logging.debug(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
+            logging.info(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
         ax.set_title(f"{monitor.country}. C {start_time.strftime('%H:%M %d.%m.')}"
-                     f" по {monitor.start_time.strftime('%H:%M %d.%m.')} "
+                     f" по {monitor.last_time.strftime('%H:%M %d.%m.')} "
                      f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"
-                     f", одобрено - {monitor.approves_day}", fontsize=16)
+                     f", одобрено - {monitor.approves_day}. "
+                     f"Прохождение цепочки {round(monitor.complete_registration_day[-1][1], 1)}%", fontsize=16)
 
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
 
-        if monitor.complete_registration_day:
-            label_complete_registration_day = f"% прохождения {round(monitor.complete_registration_day[-1][1])}"
-        else:
-            label_complete_registration_day = "% прохождения"
+        # if monitor.complete_registration_day:
+        #     label_complete_registration_day = f"% прохождения {round(monitor.complete_registration_day[-1][1])}"
+        # else:
+        #     label_complete_registration_day = "% прохождения"
         if monitor.new_bids:
             label_new_bids = f"Новые заявки {monitor.new_bids[-1][1]}"
         else:
@@ -109,9 +115,9 @@ def draw_graphs(monitor):
         plt.plot([i[0] for i in monitor.scoring_stuck_day],
                  [i[1] for i in monitor.scoring_stuck_day], 'o-', color='red',
                  label=label_scoring_stuck_day)
-        plt.plot([i[0] for i in monitor.complete_registration_day],
-                 [i[1] for i in monitor.complete_registration_day], 'o-', color='brown',
-                 label=label_complete_registration_day)
+        # plt.plot([i[0] for i in monitor.complete_registration_day],
+        #          [i[1] for i in monitor.complete_registration_day], 'o-', color='brown',
+        #          label=label_complete_registration_day)
         plt.plot([i[0] for i in monitor.new_bids],
                  [i[1] for i in monitor.new_bids], 'o-', color='magenta',
                  label=label_new_bids)
