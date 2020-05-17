@@ -69,14 +69,16 @@ def draw_graphs(monitor):
         ax.clear()
         # keep monitoring time interval up to STACK_DURATION
         start_time = (monitor.NOW - datetime.timedelta(hours=monitor.time_shift))
-        delta = abs(start_time - monitor.start_time)
+        delta = abs(start_time - monitor.last_time)
         logging.debug(f"start_time - {start_time.strftime('%H:%M:%S %d.%m.')}, "
                       f"monitor.start_time - {monitor.start_time.strftime('%H:%M:%S %d.%m.')}, "
                       f"monitor.last_time - {monitor.last_time.strftime('%H:%M:%S %d.%m.')}, "
                       f"delta = {abs(delta)}")
         if delta > datetime.timedelta(hours=STACK_DURATION):
-            start_time = monitor.start_time - datetime.timedelta(hours=STACK_DURATION)
+            start_time = monitor.last_time - datetime.timedelta(hours=STACK_DURATION)
+            monitor.update_counters(start_time)
             logging.info(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
+        logging.debug(f"!complete_registration_day - {monitor.complete_registration_day}")
         ax.set_title(f"{monitor.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                      f" по {monitor.last_time.strftime('%H:%M %d.%m.')} "
                      f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"

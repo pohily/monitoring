@@ -7,16 +7,13 @@ import logging
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
-from constants import TIME_DELTA, STACK_DURATION, KZ
+from constants import TIME_DELTA, STACK_DURATION, KZ, RU
 
 
 class Monitor():
     def __init__(self, time_shift=None, country=None):
-        self.complete_bids_day = []         # Текущее количество заявок в стадии 6 за сутки (STACK_DURATION)
-        self.incomplete_bids_day = []       # Текущее количество заявок в стадии < 6 за сутки (STACK_DURATION)
-        self.inapproved_credits_day = []    # Текущее количество кредитов в статусах -1, 0 за сутки (STACK_DURATION)
+        ############## counters
         self.approves_day = 0               # Текущее общее количество одобрений за сутки (STACK_DURATION)
-        self.new_bids_day = 0               # Текущее общее количество новых заявок за сутки (STACK_DURATION)
         self.repeat_bids_day = 0            # Текущее общее количество повторных заявок за сутки (STACK_DURATION)
         self.total_bids_day = 0             # Текущее общее количество заявок за сутки (STACK_DURATION)
         ############## stacks
@@ -27,22 +24,20 @@ class Monitor():
         ############## metrics
         self.complete_registration_day = [] # Текущий % прохождения цепочки за сутки (STACK_DURATION)
         self.scoring_stuck_day = []         # Текущее количество кредитов зависших на скоринге за сутки (STACK_DURATION)
+        self.scoring_time = []              # среднее время скоринга за TIME_DELTA - в минутах
         self.new_bids = []                  # Количество новых заявок за TIME_DELTA
         self.approves = []                  # Количество одобрений за TIME_DELTA
-        self.scoring_time = []              # среднее время скоринга за TIME_DELTA - в минутах
+        self.repeat_bids = []               # Количество повторных заявок за TIME_DELTA
+        self.total_bids = []                # Количество заявок за TIME_DELTA
         ############## под вопросом
-        #self.repeate_bids = []              # Количество повторных заявок за TIME_DELTA
         #self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
 
-        if not country:
+        if not country or country in RU:
             self.country = 'Россия'
-        else:
-            self.country = country
-        if self.country in KZ:
-            self.db_name = 'kz_backend'
-            self.country = 'Казахстан'
-        else:
             self.db_name = 'ru_backend'
+        else:
+            self.country = 'Казахстан'
+            self.db_name = 'kz_backend'
 
         config = ConfigParser()
         config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
@@ -68,11 +63,11 @@ class Monitor():
             self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
 
     @staticmethod
-    def remove_old(stack, name, value_name, time_name):
+    def remove_old(stack, last_time, name, value_name, time_name):
         to_del = []
         if stack:
             for key, value in stack.items():
-                if abs(datetime.datetime.now() - value[time_name]) > datetime.timedelta(hours=STACK_DURATION):
+                if abs(last_time - value[time_name]) > datetime.timedelta(hours=STACK_DURATION):
                     logging.debug(f"Remove {value[value_name]} from {name}")
                     to_del.append(key)
             for key in to_del:
@@ -82,15 +77,17 @@ class Monitor():
         self.start_time = self.last_time
         self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
+    def update_counters(self, start_time):
+        pass
+
     def find_metrics(self, persons, statuses):
         self.new_bids.append((self.start_time, len(persons)))
-        self.new_bids_day += len(persons)
-        approves, scoring_time = 0, []
+        total_bids, approves, scoring_time = 0, 0, []
         total_bids_day_prev = self.total_bids_day
         for status in statuses:
             # credit goes to scoring
             if status['from'] == 0 and status['to'] == 0:
-                self.total_bids_day += 1
+                total_bids += 1
                 self.scoring_stuck_stack[status['credit_id']] = status
                 logging.debug(f"append {status} to scoring_stuck_stack")
             if status['from'] == 1 and status['to'] == 2:
@@ -107,10 +104,13 @@ class Monitor():
                                   f"to {status['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                     del self.scoring_stuck_stack[status['credit_id']]
                     logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack")
-
-        self.repeat_bids_day += self.total_bids_day - total_bids_day_prev - (len(self.stage_6_stack) - self.stage_6_stack_prev)
+        self.total_bids_day += total_bids
+        self.total_bids.append((self.start_time, total_bids))
+        repeat_bids = self.total_bids_day - total_bids_day_prev - (len(self.stage_6_stack) - self.stage_6_stack_prev)
+        self.repeat_bids_day += repeat_bids
+        self.repeat_bids.append((self.start_time, repeat_bids))
         # убираем просроченные кредиты
-        Monitor.remove_old(self.scoring_stuck_stack, 'scoring_stuck_stack', 'credit_id', 'timestamp')
+        Monitor.remove_old(self.scoring_stuck_stack, self.last_time, 'scoring_stuck_stack', 'credit_id', 'timestamp')
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.start_time, len(self.scoring_stuck_stack)))
         if scoring_time:
@@ -138,11 +138,9 @@ class Monitor():
                 self.except_6_stack[person['id']] = person
                 logging.debug(f"except_6_stack append {person}")
         # убираем просроченные заявки
-        Monitor.remove_old(self.stage_6_stack, 'stage_6_stack', 'id', 'create_ts')
-        Monitor.remove_old(self.except_6_stack, 'except_6_stack', 'id', 'create_ts')
+        Monitor.remove_old(self.stage_6_stack, self.last_time, 'stage_6_stack', 'id', 'create_ts')
+        Monitor.remove_old(self.except_6_stack, self.last_time, 'except_6_stack', 'id', 'create_ts')
         # апдейтим количества заявок
-        self.complete_bids_day.append((self.start_time, len(self.stage_6_stack)))
-        self.incomplete_bids_day.append((self.start_time, len(self.except_6_stack)))
         if self.stage_6_stack or self.except_6_stack:
             self.complete_registration_day.append(
                 (self.start_time,
