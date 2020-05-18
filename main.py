@@ -71,11 +71,12 @@ def draw_graphs(monitor):
         start_time = (monitor.NOW - datetime.timedelta(hours=monitor.time_shift))
         delta = abs(start_time - monitor.last_time)
         logging.debug(f"start_time - {start_time.strftime('%H:%M:%S %d.%m.')}, "
-                      f"monitor.start_time - {monitor.start_time.strftime('%H:%M:%S %d.%m.')}, "
                       f"monitor.last_time - {monitor.last_time.strftime('%H:%M:%S %d.%m.')}, "
-                      f"delta = {abs(delta)}")
+                      f"delta = {delta}")
         if delta > datetime.timedelta(hours=STACK_DURATION):
             start_time = monitor.last_time - datetime.timedelta(hours=STACK_DURATION)
+            # Если время первого запроса к БД отличается от времени текущего запроса больше, чем на STACK_DURATION
+            # очищаем стеки от записей старше STACK_DURATION
             monitor.update_counters(start_time)
             logging.info(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
         logging.debug(f"!complete_registration_day - {monitor.complete_registration_day}")

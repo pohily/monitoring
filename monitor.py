@@ -1,6 +1,7 @@
 import datetime
 from decimal import Decimal
 import os
+from collections import deque
 from configparser import ConfigParser
 import logging
 
@@ -13,22 +14,22 @@ from constants import TIME_DELTA, STACK_DURATION, KZ, RU
 class Monitor():
     def __init__(self, time_shift=None, country=None):
         ############## counters
-        self.approves_day = 0               # Текущее общее количество одобрений за сутки (STACK_DURATION)
-        self.repeat_bids_day = 0            # Текущее общее количество повторных заявок за сутки (STACK_DURATION)
-        self.total_bids_day = 0             # Текущее общее количество заявок за сутки (STACK_DURATION)
+        self.approves_day = 0                    # Текущее общее количество одобрений за сутки (STACK_DURATION)
+        self.repeat_bids_day = 0                 # Текущее общее количество повторных заявок за сутки (STACK_DURATION)
+        self.total_bids_day = 0                  # Текущее общее количество заявок за сутки (STACK_DURATION)
         ############## stacks
-        self.stage_6_stack = {}             # persons on stage 6 за сутки (STACK_DURATION)
-        self.stage_6_stack_prev = 0         # persons on stage 6 за сутки (STACK_DURATION) в предыдущий период
-        self.except_6_stack = {}            # persons on stage < 6 за сутки (STACK_DURATION)
-        self.scoring_stuck_stack = {}       # credits stuck in scoring
+        self.stage_6_stack = {}                  # persons on stage 6 за сутки (STACK_DURATION)
+        self.stage_6_stack_prev = 0              # persons on stage 6 за сутки (STACK_DURATION) в предыдущий период
+        self.except_6_stack = {}                 # persons on stage < 6 за сутки (STACK_DURATION)
+        self.scoring_stuck_stack = {}            # credits stuck in scoring
         ############## metrics
-        self.complete_registration_day = [] # Текущий % прохождения цепочки за сутки (STACK_DURATION)
-        self.scoring_stuck_day = []         # Текущее количество кредитов зависших на скоринге за сутки (STACK_DURATION)
-        self.scoring_time = []              # среднее время скоринга за TIME_DELTA - в минутах
-        self.new_bids = []                  # Количество новых заявок за TIME_DELTA
-        self.approves = []                  # Количество одобрений за TIME_DELTA
-        self.repeat_bids = []               # Количество повторных заявок за TIME_DELTA
-        self.total_bids = []                # Количество заявок за TIME_DELTA
+        self.complete_registration_day = deque() # Текущий % прохождения цепочки за сутки (STACK_DURATION)
+        self.scoring_stuck_day = deque()         # Текущее количество кредитов зависших на скоринге за (STACK_DURATION)
+        self.scoring_time = deque()              # среднее время скоринга за TIME_DELTA - в минутах
+        self.new_bids = deque()                  # Количество новых заявок за TIME_DELTA
+        self.approves = deque()                  # Количество одобрений за TIME_DELTA
+        self.repeat_bids = deque()               # Количество повторных заявок за TIME_DELTA
+        self.total_bids = deque()                # Количество заявок за TIME_DELTA
         ############## под вопросом
         #self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
 
@@ -78,7 +79,22 @@ class Monitor():
         self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
     def update_counters(self, start_time):
-        pass
+        # Если время первого запроса к БД отличается от времени текущего запроса больше, чем на STACK_DURATION
+        # очищаем стеки от записей старше STACK_DURATION
+        stacks = ['self.complete_registration_day', 'self.scoring_stuck_day', 'self.scoring_time', 'self.new_bids',
+                  'self.approves', 'self.repeat_bids', 'self.total_bids']
+        for stack in stacks:
+            tmp = eval(stack)
+            if tmp:
+                while tmp[0][0] > start_time:
+                    x = tmp.popleft()
+                    logging.debug(f"Remove {x} from {stack}")
+                    if stack == 'self.approves':
+                        self.approves_day -= x[1]
+                    elif stack == 'self.repeat_bids':
+                        self.repeat_bids_day -= x[1]
+                    elif stack == 'self.total_bids':
+                        self.total_bids_day -= x[1]
 
     def find_metrics(self, persons, statuses):
         self.new_bids.append((self.start_time, len(persons)))
