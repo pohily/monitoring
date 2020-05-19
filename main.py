@@ -80,11 +80,15 @@ def draw_graphs(monitor):
             monitor.update_counters(start_time)
             logging.info(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
         logging.debug(f"!complete_registration_day - {monitor.complete_registration_day}")
+        if monitor.complete_registration_day:
+            complete_registration_day = round(monitor.complete_registration_day[-1][1], 1)
+        else:
+            complete_registration_day = 0
         ax.set_title(f"{monitor.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                      f" по {monitor.last_time.strftime('%H:%M %d.%m.')} "
                      f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"
                      f", одобрено - {monitor.approves_day}. "
-                     f"Прохождение цепочки {round(monitor.complete_registration_day[-1][1], 1)}%", fontsize=16)
+                     f"Прохождение цепочки {complete_registration_day}%", fontsize=16)
 
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
@@ -152,7 +156,10 @@ def main():
         if COMMAND_LINE_INPUT:
             if len(argv) == 3:
                 country = argv[2]
-            time_shift = argv[1]
+            elif len(argv) == 2:
+                time_shift = argv[1]
+            elif len(argv) == 1:
+                time_shift = 0
         else:
             time_shift = 1
     except IndexError:

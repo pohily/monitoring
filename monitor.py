@@ -51,7 +51,7 @@ class Monitor():
         self.first_monitoring = True # flag for updating time
 
         self.NOW = datetime.datetime.now()
-        self.time_shift = None
+        self.time_shift = 0
 
         self.start = True       # первый раз данные получаются без задержки
         self.real_time = False  # флаг выполненного time_shift
@@ -69,7 +69,7 @@ class Monitor():
         if stack:
             for key, value in stack.items():
                 if abs(last_time - value[time_name]) > datetime.timedelta(hours=STACK_DURATION):
-                    logging.debug(f"Remove {value[value_name]} from {name}")
+                    logging.debug(f"--remove_old-- Remove {value[value_name]} from {name}")
                     to_del.append(key)
             for key in to_del:
                 del stack[key]
@@ -85,10 +85,11 @@ class Monitor():
                   'self.approves', 'self.repeat_bids', 'self.total_bids']
         for stack in stacks:
             tmp = eval(stack)
+            logging.debug(f"--update_counters-- start_time - {start_time}. {stack} - {tmp}")
             if tmp:
-                while tmp[0][0] > start_time:
+                while tmp[0][0] < start_time:
                     x = tmp.popleft()
-                    logging.debug(f"Remove {x} from {stack}")
+                    logging.debug(f"--update_counters-- Remove {x} from {stack}")
                     if stack == 'self.approves':
                         self.approves_day -= x[1]
                     elif stack == 'self.repeat_bids':
@@ -119,7 +120,7 @@ class Monitor():
                                   f"from {self.scoring_stuck_stack[status['credit_id']]['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}"
                                   f"to {status['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                     del self.scoring_stuck_stack[status['credit_id']]
-                    logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack")
+                    logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack - Scoring OK")
         self.total_bids_day += total_bids
         self.total_bids.append((self.start_time, total_bids))
         repeat_bids = self.total_bids_day - total_bids_day_prev - (len(self.stage_6_stack) - self.stage_6_stack_prev)
@@ -130,7 +131,7 @@ class Monitor():
         # апдейтим количество кредитов зависших на скоринге
         self.scoring_stuck_day.append((self.start_time, len(self.scoring_stuck_stack)))
         if scoring_time:
-            logging.debug(f'scoring_time - {scoring_time}')
+            logging.debug(f'last scoring_time - {scoring_time}, self.scoring_time - {self.scoring_time}')
             last_scoring_time = round(sum(scoring_time) / len(scoring_time), 1)
             if self.scoring_time:
                 time = round((sum([i[1] for i in self.scoring_time]) + last_scoring_time) / (len(self.scoring_time) + 1), 1)
