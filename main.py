@@ -12,13 +12,11 @@ import pymysql
 from matplotlib.ticker import AutoMinorLocator
 from pymysql.cursors import DictCursor
 
+from constants import STACK_DURATION, TIME_DELTA
 from monitor import Monitor
-from constants import STACK_DURATION
 
 
 def monitoring(monitor):
-    if not monitor.first_monitoring:
-        monitor.update_time()
     with closing(pymysql.connect(host=monitor.host, port=monitor.port, user=monitor.user, password=monitor.password,
                                  db=monitor.db_name, charset='utf8', cursorclass=DictCursor)) as connection:
         monitor.first_monitoring = False
@@ -41,7 +39,7 @@ def monitoring(monitor):
             for row in cursor:
                 statuses.append(row)
 
-    logging.info('Рассчет метрик')
+    logging.info('----------Рассчет метрик')
     monitor.check_person_stacks(persons)
     monitor.find_metrics(persons, statuses)
 
@@ -50,17 +48,24 @@ def draw_graphs(monitor):
     fig, ax = plt.subplots(figsize=(19, 10))
 
     def get_data(*args):
-        # 1 FT
-        if not monitor.real_time and monitor.start and monitor.last_time < monitor.NOW:
+        # # 1 FT
+        # if not monitor.real_time and monitor.start and monitor.last_time < monitor.NOW:
+        #     monitoring(monitor)
+        # # 2 TT
+        # else:
+        #     monitor.real_time = True
+        # if monitor.real_time and monitor.start:
+        #     monitoring(monitor)
+        #     monitor.start = False
+        # # 3 TF
+        # elif monitor.real_time and not monitor.start:
+        #     while datetime.datetime.now() < monitor.last_time:
+        #         logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
+        #         sleep(10)
+        #     monitoring(monitor)
+        if monitor.start_time + datetime.timedelta(minutes=TIME_DELTA) < datetime.datetime.now():
             monitoring(monitor)
-        # 2 TT
         else:
-            monitor.real_time = True
-        if monitor.real_time and monitor.start:
-            monitoring(monitor)
-            monitor.start = False
-        # 3 TF
-        elif monitor.real_time and not monitor.start:
             while datetime.datetime.now() < monitor.last_time:
                 logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
                 sleep(10)
@@ -136,6 +141,7 @@ def draw_graphs(monitor):
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(which='major', length=10, width=2)
         ax.tick_params(which='minor', length=5, width=1)
+        monitor.update_time()
 
     ani = animation.FuncAnimation(fig, get_data)
     plt.show()

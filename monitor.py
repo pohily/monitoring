@@ -1,14 +1,14 @@
 import datetime
-from decimal import Decimal
+import logging
+# from decimal import Decimal
 import os
 from collections import deque
 from configparser import ConfigParser
-import logging
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
-from constants import TIME_DELTA, STACK_DURATION, KZ, RU
+from constants import TIME_DELTA, STACK_DURATION, RU
 
 
 class Monitor():
@@ -31,7 +31,7 @@ class Monitor():
         self.repeat_bids = deque()               # Количество повторных заявок за TIME_DELTA
         self.total_bids = deque()                # Количество заявок за TIME_DELTA
         ############## под вопросом
-        #self.partner_bids = []              # количество заявок через партнеров за TIME_DELTA
+        #self.partner_bids = []                  # количество заявок через партнеров за TIME_DELTA
 
         if not country or country in RU:
             self.country = 'Россия'
@@ -48,20 +48,23 @@ class Monitor():
         self.user = config['db']['user']
         self.password = config['db']['password']
 
-        self.first_monitoring = True # flag for updating time
-
         self.NOW = datetime.datetime.now()
         self.time_shift = 0
 
-        self.start = True       # первый раз данные получаются без задержки
-        self.real_time = False  # флаг выполненного time_shift
+        self.first_monitoring = True    # flag for updating time
+        # self.start = True               # первый раз данные получаются без задержки
+        # self.real_time = False          # флаг выполненного time_shift
+
         if time_shift:
             self.time_shift = int(time_shift)
             self.start_time = self.NOW - datetime.timedelta(hours=self.time_shift)
-            self.last_time = self.start_time + datetime.timedelta(minutes=TIME_DELTA)
         else:
-            self.last_time = self.NOW
             self.start_time = self.NOW - datetime.timedelta(minutes=TIME_DELTA)
+        self.last_time = self.start_time + datetime.timedelta(minutes=TIME_DELTA)
+
+    def update_time(self):
+        self.start_time = self.last_time
+        self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
     @staticmethod
     def remove_old(stack, last_time, name, value_name, time_name):
@@ -73,10 +76,6 @@ class Monitor():
                     to_del.append(key)
             for key in to_del:
                 del stack[key]
-
-    def update_time(self):
-        self.start_time = self.last_time
-        self.last_time = self.last_time + datetime.timedelta(minutes=TIME_DELTA)
 
     def update_counters(self, start_time):
         # Если время первого запроса к БД отличается от времени текущего запроса больше, чем на STACK_DURATION
