@@ -44,81 +44,138 @@ def monitoring(monitor):
     monitor.find_metrics(persons, statuses)
 
 
-def draw_graphs(monitor):
-    fig, ax = plt.subplots(figsize=(19, 10))
+def draw_graphs(monitor_ru, monitor_kz):
+    fig, axes = plt.subplots(2, 1, figsize=(19, 10))
 
     def get_data(*args):
-        if monitor.start_time + datetime.timedelta(minutes=TIME_DELTA) < datetime.datetime.now():
-            monitoring(monitor)
+        if monitor_ru.start_time + datetime.timedelta(minutes=TIME_DELTA) < datetime.datetime.now():
+            monitoring(monitor_ru)
+            monitoring(monitor_kz)
         else:
-            while datetime.datetime.now() < monitor.last_time:
-                logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
+            while datetime.datetime.now() < monitor_ru.last_time:
+                logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor_ru.last_time}')
                 sleep(10)
-            monitoring(monitor)
+            monitoring(monitor_ru)
+            monitoring(monitor_kz)
 
-        ax.clear()
+        axes[0].clear()
+        axes[1].clear()
         # keep monitoring time interval up to STACK_DURATION
-        start_time = (monitor.NOW - datetime.timedelta(hours=monitor.time_shift))
-        delta = abs(start_time - monitor.last_time)
+        start_time = (monitor_ru.NOW - datetime.timedelta(hours=monitor_ru.time_shift))
+        delta = abs(start_time - monitor_ru.last_time)
         logging.debug(f"start_time - {start_time.strftime('%H:%M:%S %d.%m.')}, "
-                      f"monitor.last_time - {monitor.last_time.strftime('%H:%M:%S %d.%m.')}, "
+                      f"monitor.last_time - {monitor_ru.last_time.strftime('%H:%M:%S %d.%m.')}, "
                       f"delta = {delta}")
         if delta > datetime.timedelta(hours=STACK_DURATION):
-            start_time = monitor.last_time - datetime.timedelta(hours=STACK_DURATION)
+            start_time = monitor_ru.last_time - datetime.timedelta(hours=STACK_DURATION)
             # Если время первого запроса к БД отличается от времени текущего запроса больше, чем на STACK_DURATION
             # очищаем стеки от записей старше STACK_DURATION
-            monitor.update_counters(start_time)
+            monitor_ru.update_counters(start_time)
+            monitor_kz.update_counters(start_time)
             logging.info(f"change monitoring time interval to {start_time.strftime('%H:%M %d.%m.')}")
-        logging.debug(f"!complete_registration_day - {monitor.complete_registration_day}")
-        if monitor.complete_registration_day:
-            complete_registration_day = round(monitor.complete_registration_day[-1][1], 1)
-        else:
-            complete_registration_day = 0
-        ax.set_title(f"{monitor.country}. C {start_time.strftime('%H:%M %d.%m.')}"
-                     f" по {monitor.last_time.strftime('%H:%M %d.%m.')} "
-                     f"Заявок новых клиентов - {monitor.total_bids_day}, повторных - {monitor.repeat_bids_day}"
-                     f", одобрено - {monitor.approves_day}. "
-                     f"Прохождение цепочки {complete_registration_day}%", fontsize=16)
+        logging.debug(f"!complete_registration_day - {monitor_ru.complete_registration_day}")
 
-        ax.grid(which="major", linewidth=1.2)
-        ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
+        if monitor_ru.complete_registration_day:
+            complete_registration_day_ru = round(monitor_ru.complete_registration_day[-1][1], 1)
+        else:
+            complete_registration_day_ru = 0
 
-        if monitor.new_bids:
-            label_new_bids = f"Новые заявки {monitor.new_bids[-1][1]}"
+        if monitor_kz.complete_registration_day:
+            complete_registration_day_kz = round(monitor_kz.complete_registration_day[-1][1], 1)
         else:
-            label_new_bids = "Новые заявки"
-        if monitor.approves:
-            label_approves = f"Одобрения {monitor.approves[-1][1]}"
+            complete_registration_day_kz = 0
+
+        axes[0].set_title(f"{monitor_ru.country}. C {start_time.strftime('%H:%M %d.%m.')}"
+                     f" по {monitor_ru.last_time.strftime('%H:%M %d.%m.')} "
+                     f"Заявок новых клиентов - {monitor_ru.total_bids_day}, повторных - {monitor_ru.repeat_bids_day}"
+                     f", одобрено - {monitor_ru.approves_day}. "
+                     f"Прохождение цепочки {complete_registration_day_ru}%", fontsize=16)
+
+        axes[1].set_title(f"{monitor_kz.country}. C {start_time.strftime('%H:%M %d.%m.')}"
+                      f" по {monitor_kz.last_time.strftime('%H:%M %d.%m.')} "
+                      f"Заявок новых клиентов - {monitor_kz.total_bids_day}, повторных - {monitor_kz.repeat_bids_day}"
+                      f", одобрено - {monitor_kz.approves_day}. "
+                      f"Прохождение цепочки {complete_registration_day_kz}%", fontsize=16)
+
+        axes[0].grid(which="major", linewidth=1.2)
+        axes[0].grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
+
+        axes[1].grid(which="major", linewidth=1.2)
+        axes[1].grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
+
+        if monitor_ru.new_bids:
+            label_new_bids_ru = f"Новые заявки {monitor_ru.new_bids[-1][1]}"
         else:
-            label_approves = "Одобрения"
-        if monitor.scoring_time:
-            label_scoring_time = f"Ср. время скоринга {monitor.scoring_time[-1][1]} мин."
+            label_new_bids_ru = "Новые заявки"
+        if monitor_ru.approves:
+            label_approves_ru = f"Одобрения {monitor_ru.approves[-1][1]}"
         else:
-            label_scoring_time = "Ср. время скоринга"
-        if monitor.scoring_time:
-            label_scoring_stuck_day = f"Застряли в скоринге {monitor.scoring_stuck_day[-1][1]}"
+            label_approves_ru = "Одобрения"
+        if monitor_ru.scoring_time:
+            label_scoring_time_ru = f"Ср. время скоринга {monitor_ru.scoring_time[-1][1]} мин."
         else:
-            label_scoring_stuck_day = "Застряли в скоринге"
+            label_scoring_time_ru = "Ср. время скоринга"
+        if monitor_ru.scoring_stuck_day_ru:
+            label_scoring_stuck_day_ru = f"Застряли в скоринге {monitor_ru.scoring_stuck_day[-1][1]}"
+        else:
+            label_scoring_stuck_day_ru = "Застряли в скоринге"
+
+        if monitor_kz.new_bids:
+            label_new_bids_kz = f"Новые заявки {monitor_kz.new_bids[-1][1]}"
+        else:
+            label_new_bids_kz = "Новые заявки"
+        if monitor_kz.approves:
+            label_approves_kz = f"Одобрения {monitor_kz.approves[-1][1]}"
+        else:
+            label_approves_kz = "Одобрения"
+        if monitor_kz.scoring_time:
+            label_scoring_time_kz = f"Ср. время скоринга {monitor_kz.scoring_time[-1][1]} мин."
+        else:
+            label_scoring_time_kz = "Ср. время скоринга"
+        if monitor_kz.scoring_stuck_day_kz:
+            label_scoring_stuck_day_kz = f"Застряли в скоринге {monitor_kz.scoring_stuck_day[-1][1]}"
+        else:
+            label_scoring_stuck_day_kz = "Застряли в скоринге"
 
         logging.info('Рисуем графики')
-        plt.plot([i[0] for i in monitor.scoring_time],
-                 [i[1] for i in monitor.scoring_time], 'o-', color='darkviolet',
-                 label=label_scoring_time)
-        plt.plot([i[0] for i in monitor.scoring_stuck_day],
-                 [i[1] for i in monitor.scoring_stuck_day], 'o-', color='red',
-                 label=label_scoring_stuck_day)
-        plt.plot([i[0] for i in monitor.new_bids],
-                 [i[1] for i in monitor.new_bids], 'o-', color='royalblue',
-                 label=label_new_bids)
-        plt.plot([i[0] for i in monitor.approves],
-                 [i[1] for i in monitor.approves], 'o-', color='limegreen',
-                 label=label_approves)
+        axes[0].plot([i[0] for i in monitor_ru.scoring_time],
+                 [i[1] for i in monitor_ru.scoring_time], 'o-', color='darkviolet',
+                 label=label_scoring_time_ru)
+        axes[0].plot([i[0] for i in monitor_ru.scoring_stuck_day],
+                 [i[1] for i in monitor_ru.scoring_stuck_day], 'o-', color='red',
+                 label=label_scoring_stuck_day_ru)
+        axes[0].plot([i[0] for i in monitor_ru.new_bids],
+                 [i[1] for i in monitor_ru.new_bids], 'o-', color='royalblue',
+                 label=label_new_bids_ru)
+        axes[0].plot([i[0] for i in monitor_ru.approves],
+                 [i[1] for i in monitor_ru.approves], 'o-', color='limegreen',
+                 label=label_approves_ru)
 
-        ax.legend(loc='upper left')
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.tick_params(which='major', length=10, width=2)
-        ax.tick_params(which='minor', length=5, width=1)
-        monitor.update_time()
+        axes[1].plot([i[0] for i in monitor_kz.scoring_time],
+                     [i[1] for i in monitor_kz.scoring_time], 'o-', color='darkviolet',
+                     label=label_scoring_time_kz)
+        axes[1].plot([i[0] for i in monitor_kz.scoring_stuck_day],
+                     [i[1] for i in monitor_kz.scoring_stuck_day], 'o-', color='red',
+                     label=label_scoring_stuck_day_kz)
+        axes[1].plot([i[0] for i in monitor_kz.new_bids],
+                     [i[1] for i in monitor_kz.new_bids], 'o-', color='royalblue',
+                     label=label_new_bids_kz)
+        axes[1].plot([i[0] for i in monitor_kz.approves],
+                     [i[1] for i in monitor_kz.approves], 'o-', color='limegreen',
+                     label=label_approves_kz)
+
+        axes[0].legend(loc='upper left')
+        axes[0].yaxis.set_minor_locator(AutoMinorLocator())
+        axes[0].tick_params(which='major', length=10, width=2)
+        axes[0].tick_params(which='minor', length=5, width=1)
+
+        axes[1].legend(loc='upper left')
+        axes[1].yaxis.set_minor_locator(AutoMinorLocator())
+        axes[1].tick_params(which='major', length=10, width=2)
+        axes[1].tick_params(which='minor', length=5, width=1)
+
+        monitor_ru.update_time()
+        monitor_kz.update_time()
 
     ani = animation.FuncAnimation(fig, get_data)
     plt.show()
@@ -148,8 +205,9 @@ def main():
     except IndexError:
         logging.exception('Введите количество часов для построения графика!')
         raise Exception('Введите количество часов для построения графика!')
-    monitor = Monitor(time_shift, country=country)
-    draw_graphs(monitor)
+    monitor_ru = Monitor(time_shift, country='ru')
+    monitor_kz = Monitor(time_shift, country='kz')
+    draw_graphs(monitor_ru, monitor_kz)
 
 
 if __name__ == '__main__':
