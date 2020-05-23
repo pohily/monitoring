@@ -139,6 +139,7 @@ def main():
         if COMMAND_LINE_INPUT:
             if len(argv) == 3:
                 country = argv[2]
+                time_shift = argv[1]
             elif len(argv) == 2:
                 time_shift = argv[1]
             elif len(argv) == 1:
