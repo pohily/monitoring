@@ -1,6 +1,5 @@
 import datetime
 import logging
-# from decimal import Decimal
 import os
 from collections import deque
 from configparser import ConfigParser
@@ -30,8 +29,6 @@ class Monitor():
         self.approves = deque()                  # Количество одобрений за TIME_DELTA
         self.repeat_bids = deque()               # Количество повторных заявок за TIME_DELTA
         self.total_bids = deque()                # Количество заявок за TIME_DELTA
-        ############## под вопросом
-        #self.partner_bids = []                  # количество заявок через партнеров за TIME_DELTA
 
         if not country or country in RU:
             self.country = 'Россия'
@@ -52,8 +49,6 @@ class Monitor():
         self.time_shift = 0
 
         self.first_monitoring = True    # flag for updating time
-        # self.start = True               # первый раз данные получаются без задержки
-        # self.real_time = False          # флаг выполненного time_shift
 
         if time_shift:
             self.time_shift = int(time_shift)

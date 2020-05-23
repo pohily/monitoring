@@ -48,21 +48,6 @@ def draw_graphs(monitor):
     fig, ax = plt.subplots(figsize=(19, 10))
 
     def get_data(*args):
-        # # 1 FT
-        # if not monitor.real_time and monitor.start and monitor.last_time < monitor.NOW:
-        #     monitoring(monitor)
-        # # 2 TT
-        # else:
-        #     monitor.real_time = True
-        # if monitor.real_time and monitor.start:
-        #     monitoring(monitor)
-        #     monitor.start = False
-        # # 3 TF
-        # elif monitor.real_time and not monitor.start:
-        #     while datetime.datetime.now() < monitor.last_time:
-        #         logging.debug(f'Sleep until {datetime.datetime.now()} == {monitor.last_time}')
-        #         sleep(10)
-        #     monitoring(monitor)
         if monitor.start_time + datetime.timedelta(minutes=TIME_DELTA) < datetime.datetime.now():
             monitoring(monitor)
         else:
@@ -98,10 +83,6 @@ def draw_graphs(monitor):
         ax.grid(which="major", linewidth=1.2)
         ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
 
-        # if monitor.complete_registration_day:
-        #     label_complete_registration_day = f"% прохождения {round(monitor.complete_registration_day[-1][1])}"
-        # else:
-        #     label_complete_registration_day = "% прохождения"
         if monitor.new_bids:
             label_new_bids = f"Новые заявки {monitor.new_bids[-1][1]}"
         else:
@@ -119,22 +100,18 @@ def draw_graphs(monitor):
         else:
             label_scoring_stuck_day = "Застряли в скоринге"
 
-        # draw graphs
         logging.info('Рисуем графики')
         plt.plot([i[0] for i in monitor.scoring_time],
-                 [i[1] for i in monitor.scoring_time], 'o-', color='blue',
+                 [i[1] for i in monitor.scoring_time], 'o-', color='darkviolet',
                  label=label_scoring_time)
         plt.plot([i[0] for i in monitor.scoring_stuck_day],
                  [i[1] for i in monitor.scoring_stuck_day], 'o-', color='red',
                  label=label_scoring_stuck_day)
-        # plt.plot([i[0] for i in monitor.complete_registration_day],
-        #          [i[1] for i in monitor.complete_registration_day], 'o-', color='brown',
-        #          label=label_complete_registration_day)
         plt.plot([i[0] for i in monitor.new_bids],
-                 [i[1] for i in monitor.new_bids], 'o-', color='magenta',
+                 [i[1] for i in monitor.new_bids], 'o-', color='royalblue',
                  label=label_new_bids)
         plt.plot([i[0] for i in monitor.approves],
-                 [i[1] for i in monitor.approves], 'o-', color='green',
+                 [i[1] for i in monitor.approves], 'o-', color='limegreen',
                  label=label_approves)
 
         ax.legend(loc='upper left')
