@@ -63,7 +63,6 @@ def draw_graphs(monitor_1, monitor_2=None):
             if monitor_2:
                 monitoring(monitor_2)
 
-
         if monitor_2:
             axes[0].clear()
             axes[1].clear()
@@ -86,32 +85,32 @@ def draw_graphs(monitor_1, monitor_2=None):
         logging.debug(f"!complete_registration_day - {monitor_1.complete_registration_day}")
 
         if monitor_1.complete_registration_day:
-            complete_registration_day_ru = round(monitor_1.complete_registration_day[-1][1], 1)
+            complete_registration_day_1 = round(monitor_1.complete_registration_day[-1][1], 1)
         else:
-            complete_registration_day_ru = 0
+            complete_registration_day_1 = 0
 
         if monitor_2:
             if monitor_2.complete_registration_day:
-                complete_registration_day_kz = round(monitor_2.complete_registration_day[-1][1], 1)
+                complete_registration_day_2 = round(monitor_2.complete_registration_day[-1][1], 1)
             else:
-                complete_registration_day_kz = 0
+                complete_registration_day_2 = 0
             axes[1].set_title(f"{monitor_2.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                         f" по {monitor_2.last_time.strftime('%H:%M %d.%m.')} "
                         f"Всего заявок - {monitor_2.all_bids_day}, завершенных - {monitor_2.total_bids_day}, "
                         f"повторных - {monitor_2.repeat_bids_day}, одобрено - {monitor_2.approves_day}. "
-                        f"Прохождение цепочки {complete_registration_day_kz}%", fontsize=16)
+                        f"Прохождение цепочки {complete_registration_day_2}%", fontsize=16)
 
             axes[0].set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                          f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
                          f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
                          f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}. "
-                         f"Прохождение цепочки {complete_registration_day_ru}%", fontsize=16)
+                         f"Прохождение цепочки {complete_registration_day_1}%", fontsize=16)
         else:
             ax.set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                         f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
                         f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
                         f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}. "
-                        f"Прохождение цепочки {complete_registration_day_ru}%", fontsize=16)
+                        f"Прохождение цепочки {complete_registration_day_1}%", fontsize=16)
 
 
         if monitor_2:
