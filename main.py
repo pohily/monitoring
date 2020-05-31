@@ -98,21 +98,18 @@ def draw_graphs(monitor_1, monitor_2=None):
                         f" по {monitor_2.last_time.strftime('%H:%M %d.%m.')} "
                         f"Всего заявок - {monitor_2.all_bids_day}, завершенных - {monitor_2.total_bids_day}, "
                         f"повторных - {monitor_2.repeat_bids_day}, одобрено - {monitor_2.approves_day}. "
-                        f"Прохождение цепочки {complete_registration_day_2}%", fontsize=16)
-
+                        , fontsize=16)
             axes[0].set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                          f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
                          f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
                          f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}. "
-                         f"Прохождение цепочки {complete_registration_day_1}%", fontsize=16)
+                         , fontsize=16)
+
         else:
             ax.set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                         f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
                         f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
-                        f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}. "
-                        f"Прохождение цепочки {complete_registration_day_1}%", fontsize=16)
-
-
+                        f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}., fontsize=16)
         if monitor_2:
             axes[0].grid(which="major", linewidth=1.2)
             axes[0].grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
@@ -123,78 +120,95 @@ def draw_graphs(monitor_1, monitor_2=None):
             ax.grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
 
         if monitor_1.new_bids:
-            label_new_bids_ru = f"Новые заявки {monitor_1.new_bids[-1][1]}"
+            label_new_bids_1 = f"Новые заявки {monitor_1.new_bids[-1][1]}"
         else:
-            label_new_bids_ru = "Новые заявки"
+            label_new_bids_1 = "Новые заявки"
         if monitor_1.approves:
-            label_approves_ru = f"Одобрения {monitor_1.approves[-1][1]}"
+            label_approves_1 = f"Одобрения {monitor_1.approves[-1][1]}"
         else:
-            label_approves_ru = "Одобрения"
+            label_approves_1 = "Одобрения"
         if monitor_1.scoring_time:
-            label_scoring_time_ru = f"Ср. время скоринга {monitor_1.scoring_time[-1][1]} мин."
+            label_scoring_time_1 = f"Ср. время скоринга {monitor_1.scoring_time[-1][1]} мин."
         else:
-            label_scoring_time_ru = "Ср. время скоринга"
+            label_scoring_time_1 = "Ср. время скоринга"
         if monitor_1.scoring_stuck_day:
-            label_scoring_stuck_day_ru = f"Застряли в скоринге {monitor_1.scoring_stuck_day[-1][1]}"
+            label_scoring_stuck_day_1 = f"Застряли в скоринге {monitor_1.scoring_stuck_day[-1][1]}"
         else:
-            label_scoring_stuck_day_ru = "Застряли в скоринге"
+            label_scoring_stuck_day_1 = "Застряли в скоринге"
+        if monitor_1.complete_registration_day:
+            label_complete_registration_day_1 = f"% Прохождение цепочки {complete_registration_day_1}"
+        else:
+            label_complete_registration_day_1 = "% Прохождение цепочки"
 
         logging.info('Рисуем графики')
         if monitor_2:
             if monitor_2.new_bids:
-                label_new_bids_kz = f"Новые заявки {monitor_2.new_bids[-1][1]}"
+                label_new_bids_2 = f"Новые заявки {monitor_2.new_bids[-1][1]}"
             else:
-                label_new_bids_kz = "Новые заявки"
+                label_new_bids_2 = "Новые заявки"
             if monitor_2.approves:
-                label_approves_kz = f"Одобрения {monitor_2.approves[-1][1]}"
+                label_approves_2 = f"Одобрения {monitor_2.approves[-1][1]}"
             else:
-                label_approves_kz = "Одобрения"
+                label_approves_2 = "Одобрения"
             if monitor_2.scoring_time:
-                label_scoring_time_kz = f"Ср. время скоринга {monitor_2.scoring_time[-1][1]} мин."
+                label_scoring_time_2 = f"Ср. время скоринга {monitor_2.scoring_time[-1][1]} мин."
             else:
-                label_scoring_time_kz = "Ср. время скоринга"
+                label_scoring_time_2 = "Ср. время скоринга"
             if monitor_2.scoring_stuck_day:
-                label_scoring_stuck_day_kz = f"Застряли в скоринге {monitor_2.scoring_stuck_day[-1][1]}"
+                label_scoring_stuck_day_2 = f"Застряли в скоринге {monitor_2.scoring_stuck_day[-1][1]}"
             else:
-                label_scoring_stuck_day_kz = "Застряли в скоринге"
+                label_scoring_stuck_day_2 = "Застряли в скоринге"
+            if monitor_1.complete_registration_day:
+                label_complete_registration_day_2 = f"% Прохождение цепочки {complete_registration_day_2}"
+            else:
+                label_complete_registration_day_2 = "% Прохождение цепочки"
             axes[1].plot([i[0] for i in monitor_2.scoring_time],
                          [i[1] for i in monitor_2.scoring_time], 'o-', color='darkviolet',
-                         label=label_scoring_time_kz)
+                         label=label_scoring_time_2)
             axes[1].plot([i[0] for i in monitor_2.scoring_stuck_day],
                          [i[1] for i in monitor_2.scoring_stuck_day], 'o-', color='red',
-                         label=label_scoring_stuck_day_kz)
+                         label=label_scoring_stuck_day_2)
             axes[1].plot([i[0] for i in monitor_2.new_bids],
                          [i[1] for i in monitor_2.new_bids], 'o-', color='royalblue',
-                         label=label_new_bids_kz)
+                         label=label_new_bids_2)
             axes[1].plot([i[0] for i in monitor_2.approves],
                          [i[1] for i in monitor_2.approves], 'o-', color='limegreen',
-                         label=label_approves_kz)
+                         label=label_approves_2)
+            axes[1].plot([i[0] for i in monitor_2.complete_registration_day],
+                         [i[1]/10 for i in monitor_2.complete_registration_day], 'o-', color='sienna',
+                         label=label_complete_registration_day_2)
 
             axes[0].plot([i[0] for i in monitor_1.scoring_time],
                          [i[1] for i in monitor_1.scoring_time], 'o-', color='darkviolet',
-                         label=label_scoring_time_ru)
+                         label=label_scoring_time_1)
             axes[0].plot([i[0] for i in monitor_1.scoring_stuck_day],
                          [i[1] for i in monitor_1.scoring_stuck_day], 'o-', color='red',
-                         label=label_scoring_stuck_day_ru)
+                         label=label_scoring_stuck_day_1)
             axes[0].plot([i[0] for i in monitor_1.new_bids],
                          [i[1] for i in monitor_1.new_bids], 'o-', color='royalblue',
-                         label=label_new_bids_ru)
+                         label=label_new_bids_1)
             axes[0].plot([i[0] for i in monitor_1.approves],
                          [i[1] for i in monitor_1.approves], 'o-', color='limegreen',
-                         label=label_approves_ru)
+                         label=label_approves_1)
+            axes[0].plot([i[0] for i in monitor_1.complete_registration_day],
+                         [i[1]/10 for i in monitor_1.complete_registration_day], 'o-', color='sienna',
+                         label=label_complete_registration_day_1)
         else:
             ax.plot([i[0] for i in monitor_1.scoring_time],
                          [i[1] for i in monitor_1.scoring_time], 'o-', color='darkviolet',
-                         label=label_scoring_time_ru)
+                         label=label_scoring_time_1)
             ax.plot([i[0] for i in monitor_1.scoring_stuck_day],
                          [i[1] for i in monitor_1.scoring_stuck_day], 'o-', color='red',
-                         label=label_scoring_stuck_day_ru)
+                         label=label_scoring_stuck_day_1)
             ax.plot([i[0] for i in monitor_1.new_bids],
                          [i[1] for i in monitor_1.new_bids], 'o-', color='royalblue',
-                         label=label_new_bids_ru)
+                         label=label_new_bids_1)
             ax.plot([i[0] for i in monitor_1.approves],
                          [i[1] for i in monitor_1.approves], 'o-', color='limegreen',
-                         label=label_approves_ru)
+                         label=label_approves_1)
+            ax.plot([i[0] for i in monitor_1.complete_registration_day],
+                         [i[1]/10 for i in monitor_1.complete_registration_day], 'o-', color='sienna',
+                         label=label_complete_registration_day_1)
 
 
 
