@@ -109,7 +109,8 @@ def draw_graphs(monitor_1, monitor_2=None):
             ax.set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                         f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
                         f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
-                        f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}., fontsize=16)
+                        f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}."
+                        , fontsize=16)
         if monitor_2:
             axes[0].grid(which="major", linewidth=1.2)
             axes[0].grid(which="minor", linestyle="--", color="gray", linewidth=0.5)
@@ -209,8 +210,6 @@ def draw_graphs(monitor_1, monitor_2=None):
             ax.plot([i[0] for i in monitor_1.complete_registration_day],
                          [i[1]/10 for i in monitor_1.complete_registration_day], 'o-', color='sienna',
                          label=label_complete_registration_day_1)
-
-
 
         if monitor_2:
             axes[0].legend(loc='upper left')
