@@ -97,20 +97,20 @@ def draw_graphs(monitor_1, monitor_2=None):
                 complete_registration_day_kz = 0
             axes[1].set_title(f"{monitor_2.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                         f" по {monitor_2.last_time.strftime('%H:%M %d.%m.')} "
-                        f"Заявок новых клиентов - {monitor_2.total_bids_day}, повторных - {monitor_2.repeat_bids_day}"
-                        f", одобрено - {monitor_2.approves_day}. "
+                        f"Всего заявок - {monitor_2.all_bids_day}, завершенных - {monitor_2.total_bids_day}, "
+                        f"повторных - {monitor_2.repeat_bids_day}, одобрено - {monitor_2.approves_day}. "
                         f"Прохождение цепочки {complete_registration_day_kz}%", fontsize=16)
 
             axes[0].set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                          f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
-                         f"Заявок новых клиентов - {monitor_1.total_bids_day}, повторных - {monitor_1.repeat_bids_day}"
-                         f", одобрено - {monitor_1.approves_day}. "
+                         f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
+                         f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}. "
                          f"Прохождение цепочки {complete_registration_day_ru}%", fontsize=16)
         else:
             ax.set_title(f"{monitor_1.country}. C {start_time.strftime('%H:%M %d.%m.')}"
                         f" по {monitor_1.last_time.strftime('%H:%M %d.%m.')} "
-                        f"Заявок новых клиентов - {monitor_1.total_bids_day}, повторных - {monitor_1.repeat_bids_day}"
-                        f", одобрено - {monitor_1.approves_day}. "
+                        f"Всего заявок - {monitor_1.all_bids_day}, завершенных - {monitor_1.total_bids_day}, "
+                        f"повторных - {monitor_1.repeat_bids_day}, одобрено - {monitor_1.approves_day}. "
                         f"Прохождение цепочки {complete_registration_day_ru}%", fontsize=16)
 
 
@@ -226,7 +226,7 @@ def draw_graphs(monitor_1, monitor_2=None):
 
 def main():
     os.makedirs('logs', exist_ok=True)
-    level = logging.DEBUG
+    level = logging.INFO
     handlers = [logging.FileHandler('logs/log.txt'), logging.StreamHandler()]
     format = u'%(filename)s[LINE:%(lineno)d]# %(levelname)-8s [%(asctime)s]  %(message)s'
     logging.basicConfig(level=level, format=format, handlers=handlers)

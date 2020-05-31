@@ -15,11 +15,13 @@ class Monitor():
         ############## counters
         self.approves_day = 0                    # Текущее общее количество одобрений за сутки (STACK_DURATION)
         self.repeat_bids_day = 0                 # Текущее общее количество повторных заявок за сутки (STACK_DURATION)
-        self.total_bids_day = 0                  # Текущее общее количество заявок за сутки (STACK_DURATION)
+        self.total_bids_day = 0                  # Текущее общее количество законченных заявок за сутки (STACK_DURATION)
+        self.all_bids_day = 0                    # Текущее общее количество заявок за сутки (STACK_DURATION)
         ############## stacks
         self.stage_6_stack = {}                  # persons on stage 6 за сутки (STACK_DURATION)
-        self.stage_6_stack_prev = 0              # persons on stage 6 за сутки (STACK_DURATION) в предыдущий период
         self.except_6_stack = {}                 # persons on stage < 6 за сутки (STACK_DURATION)
+        self.stage_6_stack_prev = 0              # persons on stage 6 за сутки (STACK_DURATION) в предыдущий период
+        self.except_6_stack_prev = 0             # persons on stage < 6 за сутки (STACK_DURATION) в предыдущий период
         self.scoring_stuck_stack = {}            # credits stuck in scoring
         ############## metrics
         self.complete_registration_day = deque() # Текущий % прохождения цепочки за сутки (STACK_DURATION)
@@ -28,7 +30,8 @@ class Monitor():
         self.new_bids = deque()                  # Количество новых заявок за TIME_DELTA
         self.approves = deque()                  # Количество одобрений за TIME_DELTA
         self.repeat_bids = deque()               # Количество повторных заявок за TIME_DELTA
-        self.total_bids = deque()                # Количество заявок за TIME_DELTA
+        self.total_bids = deque()                # Количество законченных заявок за TIME_DELTA
+        self.all_bids = deque()                  # Количество заявок за TIME_DELTA
 
         if not country or country in RU:
             self.country = 'Россия'
@@ -76,7 +79,7 @@ class Monitor():
         # Если время первого запроса к БД отличается от времени текущего запроса больше, чем на STACK_DURATION
         # очищаем стеки от записей старше STACK_DURATION
         stacks = ['self.complete_registration_day', 'self.scoring_stuck_day', 'self.scoring_time', 'self.new_bids',
-                  'self.approves', 'self.repeat_bids', 'self.total_bids']
+                  'self.approves', 'self.repeat_bids', 'self.total_bids', 'self.all_bids']
         for stack in stacks:
             tmp = eval(stack)
             logging.debug(f"--update_counters-- start_time - {start_time}. {stack} - {tmp}")
@@ -90,6 +93,8 @@ class Monitor():
                         self.repeat_bids_day -= x[1]
                     elif stack == 'self.total_bids':
                         self.total_bids_day -= x[1]
+                    elif stack == 'self.all_bids':
+                        self.all_bids -= x[1]
 
     def find_metrics(self, persons, statuses):
         self.new_bids.append((self.start_time, len(persons)))
@@ -115,11 +120,17 @@ class Monitor():
                                   f"to {status['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
                     del self.scoring_stuck_stack[status['credit_id']]
                     logging.debug(f"Remove {status['credit_id']} from scoring_stuck_stack - Scoring OK")
+        # Количество законченных заявок
         self.total_bids_day += total_bids
         self.total_bids.append((self.start_time, total_bids))
+        # Количество повторных заявок
         repeat_bids = self.total_bids_day - total_bids_day_prev - (len(self.stage_6_stack) - self.stage_6_stack_prev)
         self.repeat_bids_day += repeat_bids
         self.repeat_bids.append((self.start_time, repeat_bids))
+        # Количество заявок
+        all_bids = total_bids + len(self.except_6_stack) - self.except_6_stack_prev
+        self.all_bids_day += all_bids
+        self.all_bids.append((self.start_time, all_bids))
         # убираем просроченные кредиты
         Monitor.remove_old(self.scoring_stuck_stack, self.last_time, 'scoring_stuck_stack', 'credit_id', 'timestamp')
         # апдейтим количество кредитов зависших на скоринге
@@ -138,6 +149,7 @@ class Monitor():
 
     def check_person_stacks(self, persons):
         self.stage_6_stack_prev = len(self.stage_6_stack)
+        self.except_6_stack_prev = len(self.except_6_stack)
         # добавляем новые заявки
         for person in persons:
             if person['stage'] == 6:
